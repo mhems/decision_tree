@@ -4,6 +4,14 @@
 # Driver methods
 ##################
 
+from decision_tree import *
+from DTree import *
+import pandas as pd
+import numpy  as np
+import re
+import math
+import glob
+
 def rec_print(node, indent):
     s = ' ' * indent
     if (node.left != None):
@@ -30,6 +38,7 @@ def test_tree (train_fn,test_fn):
 
 if __name__ == '__main__':
     #rec_print(dTree.root, 0)
+    SALAMI_path = '/home/matt/Development/cs580/project/data/SALAMI/'
     test_tree(SALAMI_path + 'our_data/train_first.csv',
               SALAMI_path + 'our_data/test_first.csv' )
 

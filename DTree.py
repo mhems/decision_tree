@@ -2,6 +2,9 @@
 # Decision Tree Classes
 ##################
 
+from decision_tree import *
+import pandas as pd
+
 class DTreeNode:
     def __init__(self,val,col=-1,l=None,r=None):
         self.value = val
