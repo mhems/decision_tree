@@ -127,14 +127,14 @@ def test_tree (train_fn,test_fn):
         print ID, guess, truth
         if guess != truth:
             wrong += 1
-    print '%d incorrect out of %d (%.2f%%)' % (wrong,total,wrong * 100 / total)
+    print 'File %s::%d incorrect out of %d (%.2f%%)' % (train_fn,wrong,total,wrong * 100 / total)
 
 if __name__ == '__main__':
-    #rec_print(dTree.root, 0)
-    print 'adfasd'
-    SALAMI_path = '/home/matt/Development/cs580/project/data/SALAMI/'
-    test_tree(SALAMI_path + 'our_data/train_first.csv',
-              SALAMI_path + 'our_data/test_first.csv' )
+    SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/runs/'
+    for i in range(1,11):
+        test_tree(SALAMI_path + 'train_' + repr(i) + '.csv',
+                  SALAMI_path + 'test_'  + repr(i) + '.csv')
+        print '*' * 10
 
 def rec_print(node, indent):
     s = ' ' * indent
