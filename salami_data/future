@@ -1,0 +1,19 @@
+  390  less 1580/parsed/
+  391  less 1580/parsed/textfile1_lowercase.txt 
+  522  sed 's/^.*,//g' w_genre.csv 
+  523  sed 's/^.*,//g' w_genre.csv | wc -l
+  524  sed 's/^.*,//g' w_genre.csv | sort > sorted_genres
+  621  head -n 1 generated_data.csv | sed 's/,/\n/g' | wc -l
+  622  head -n 1 generated_data.csv | sed 's/,/\n/g' | nl
+  666  sed 's/,([^,]+)$/\1/g' w_genre.csv |head
+  667  sed 's@,([^,]+)$@\1@g' w_genre.csv |head
+  668  man sed
+  669  sed -r 's@,([^,]+)$@\1@g' w_genre.csv |head
+  670  sed -r 's@,([^,]+)$@,"\1"@g' w_genre.csv |head
+  671  sed -ir 's@,([^,]+)$@,"\1"@g' w_genre.csv
+  672  sed -ri 's@,([^,]+)$@,"\1"@g' w_genre.csv
+  674  sed 's/^([^,]+),/"\1"/g' w_genre.csv |head
+  675  sed -r 's/^([^,]+),/"\1"/g' w_genre.csv |head
+  676  sed -r 's/^([^,]+),/"\1",/g' w_genre.csv |head
+  683  history | grep sed 
+  684  history | grep sed > future
