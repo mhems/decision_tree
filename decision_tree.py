@@ -86,7 +86,7 @@ class DTreeNode:
             color = "red"
         elif (self.value == "R&B" or self.col == "num_sections" or self.col == "avg_section_len"):
             color = "yellow"
-        elif (self.value == "Rock" or self.col == "tempo"):
+        elif (self.value == "Rock" or self.col == "tempo_val"):
             color = "green"
         elif (self.value == "World" or self.col == "duration"):
             color = "purple"
@@ -117,7 +117,7 @@ class DTree:
         graph = pydot.Dot(graph_type='digraph')
         self.root = learn_decision_tree(dataframe, graph)
         print 'Decision tree for %s has been learned' % filename
-        graph.write_png('test.png')
+        graph.write_png('%s.png' % filename)
 
     def decide (self, datarow):
         return self.decide_rec(self.root, datarow)
@@ -161,17 +161,54 @@ def test_tree (train_fn,test_fn):
         ID = row['ID']
         guess = dTree.decide(row)
         truth = row['genre']
-        print ID, guess, truth
+#        print ID, guess, truth
         if guess != truth:
             wrong += 1
-    print 'File %s::%d incorrect out of %d (%.2f%%)' % (train_fn,wrong,total,wrong * 100 / total)
+    print 'File %s::%d incorrect out of %d (%.2f%%)' % (test_fn,wrong,total,wrong * 100 / total)
+    return (wrong,total)
+
+# given filename and K (num. chunks), make files
+def gen_cross_validation_files(filename, K):
+    superfile = open(filename,'r')
+    all_lines = superfile.readlines()
+    header = all_lines[0]
+    lines  = all_lines[1:]
+    num_lines = len(lines)
+    chunksize = num_lines/K
+    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
+    chunks.append(lines[chunksize*(K-1):])
+    for i, c in enumerate(chunks):
+        test_f = open("test_%d.txt" % i, 'w')
+        test_f.write(header)
+        test_f.writelines(c)
+        rest = []
+        [rest.extend(r) for r in chunks[0:i]]
+        [rest.extend(r) for r in chunks[i+1:]]
+        train_f = open("train_%d.txt" % i, 'w')
+        train_f.write(header)
+        train_f.writelines(rest)
+
+def cross_validate(K):
+    acc_wrong = 0.0
+    acc_total = 0.0
+    for i in range(0,K):
+        wrong, total = test_tree('train_%d.txt' % i, 'test_%d.txt' % i)
+        acc_wrong += wrong
+        acc_total += total
+    err = acc_wrong/acc_total
+    print "Total error: %.2f%%" % (err*100)
+    return err
 
 if __name__ == '__main__':
     SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/runs/'
-    for i in range(1,2):#11):
-        test_tree(SALAMI_path + 'train_' + repr(i) + '.csv',
-                  SALAMI_path + 'test_'  + repr(i) + '.csv')
-        print '*' * 10
+    big = '/home/matt/Development/cs580/project/repo/salami_data/first.csv'
+#    gen_cross_validation_files(big, 10)
+    err = cross_validate(10)
+
+#    for i in range(1,2):#11):
+#        test_tree(SALAMI_path + 'train_' + repr(i) + '.csv',
+#                  SALAMI_path + 'test_'  + repr(i) + '.csv')
+#        print '*' * 10
 
 def rec_print(node, indent):
     s = ' ' * indent

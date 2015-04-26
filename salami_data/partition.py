@@ -8,7 +8,7 @@ import sys
 from random import random as rand
 
 # returns (train lines, test lines)
-def partition(lines, percent):
+def random_partition(lines, percent):
     num = len(lines)
     test_no = (num * percent) // 100
     train_no  = num - test_no
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     test_f  = open(test_n, 'w')
     lines  = par_f.readlines()
     header = lines[0]
-    train,test = partition(lines[1:], percent_test)
+    train,test = random_partition(lines[1:], percent_test)
     train_f.write(header)
     train_f.writelines(train)
     test_f.write(header)
