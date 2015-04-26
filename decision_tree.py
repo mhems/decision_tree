@@ -1,12 +1,12 @@
 #!/usr/bin/python2
 
-
 import pandas as pd
 import numpy as np
 import math
 import re
 import glob
 import math
+import pydot
 
 TARGET = 'genre'
 
@@ -68,25 +68,34 @@ class DTreeNode:
     def isLeaf(self):
         return self.left is None and self.right is None
 
+    def getDescription(self):
+        if self.isLeaf():
+            return repr(self.value)
+        else:
+            return "%s < %d" % (self.col, self.value)
+
+    def getVertex(self):
+        return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor());
+
+    def __getColor(self):
+        if (self.value == "Blues" or self.col == "num_bars" or self.col == "avg_bar_len"):
+            color = "blue"
+        elif (self.value == "Classical" or self.col == "num_beats" or self.col == "avg_beat_len"):
+            color = "blue"
+        elif (self.value == "Jazz" or self.col == "num_tatums" or self.col == "avg_tatum_len"):
+            color = "red"
+        elif (self.value == "R&B" or self.col == "num_sections" or self.col == "avg_section_len"):
+            color = "yellow"
+        elif (self.value == "Rock" or self.col == "tempo"):
+            color = "green"
+        elif (self.value == "World" or self.col == "duration"):
+            color = "purple"
+        else:
+            color = "white"
+        return color
+
 def num_groups(dataset):
     return len(dataset.groupby(TARGET).groups)
-
-def learn_decision_tree(dataset):
-    if num_groups(dataset) == 1:
-        cls = re.split('[ \t\n\r]+',repr(dataset['genre']))[1]
-        #print("  LEAF: '%s'" % (cls))
-        return DTreeNode(cls)
-    #print("  INTERNAL %d %d" % (num_groups(dataset),len(dataset)))
-    _,axis,threshold = find_optimal_split(dataset)
-    if axis == None or axis == '':
-        raise Exception
-    left_subset  = dataset[dataset[axis] <  threshold]
-    right_subset = dataset[dataset[axis] >= threshold]    
-    return DTreeNode(threshold,
-                     axis,
-                     learn_decision_tree(left_subset),
-                     learn_decision_tree(right_subset))
-
 
 def getRelevantFeatures(dataset):
     # strip away columns not used for learning
@@ -98,13 +107,17 @@ def getRelevantFeatures(dataset):
                          'key_val','key_conf','tempo_conf'
                        ], 1)
 
+
 class DTree:
     def __init__(self, filename):
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
+
         print 'Learning decision tree'
-        self.root = learn_decision_tree(dataframe)
+        graph = pydot.Dot(graph_type='digraph')
+        self.root = learn_decision_tree(dataframe, graph)
         print 'Decision tree for %s has been learned' % filename
+        graph.write_png('test.png')
 
     def decide (self, datarow):
         return self.decide_rec(self.root, datarow)
@@ -114,6 +127,30 @@ class DTree:
         if type(dec) == type(""):
             return dec
         return self.decide_rec(dec, datarow)
+
+def learn_decision_tree(dataset, graph):
+    if num_groups(dataset) == 1:
+        cls = re.split('[ \t\n\r]+',repr(dataset['genre']))[1]
+        #print("  LEAF: '%s'" % (cls))
+        return DTreeNode(cls)
+    #print("  INTERNAL %d %d" % (num_groups(dataset),len(dataset)))
+    _,axis,threshold = find_optimal_split(dataset)
+    if axis == None or axis == '':
+        raise Exception
+    left_subset  = dataset[dataset[axis] <  threshold]
+    left_node    = learn_decision_tree(left_subset, graph)
+    left_vertex  = left_node.getVertex()
+    right_subset = dataset[dataset[axis] >= threshold]    
+    right_node   = learn_decision_tree(right_subset, graph)
+    right_vertex = right_node.getVertex()
+    graph.add_node(left_vertex)
+    graph.add_node(right_vertex)
+    parent = DTreeNode(threshold, axis, left_node, right_node)
+    parent_vertex = parent.getVertex()
+    graph.add_node(parent_vertex)
+    graph.add_edge(pydot.Edge(parent_vertex, left_vertex))
+    graph.add_edge(pydot.Edge(parent_vertex, right_vertex))
+    return parent
 
 def test_tree (train_fn,test_fn):
     dTree = DTree(train_fn)
@@ -131,7 +168,7 @@ def test_tree (train_fn,test_fn):
 
 if __name__ == '__main__':
     SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/runs/'
-    for i in range(1,11):
+    for i in range(1,2):#11):
         test_tree(SALAMI_path + 'train_' + repr(i) + '.csv',
                   SALAMI_path + 'test_'  + repr(i) + '.csv')
         print '*' * 10
