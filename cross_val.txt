@@ -1,0 +1,31 @@
+Learning decision tree
+Decision tree for train_0.txt has been learned
+File test_0.txt::29 incorrect out of 39 (74.00%)
+Learning decision tree
+Decision tree for train_1.txt has been learned
+File test_1.txt::24 incorrect out of 39 (61.00%)
+Learning decision tree
+Decision tree for train_2.txt has been learned
+File test_2.txt::23 incorrect out of 39 (58.00%)
+Learning decision tree
+Decision tree for train_3.txt has been learned
+File test_3.txt::32 incorrect out of 39 (82.00%)
+Learning decision tree
+Decision tree for train_4.txt has been learned
+File test_4.txt::28 incorrect out of 39 (71.00%)
+Learning decision tree
+Decision tree for train_5.txt has been learned
+File test_5.txt::26 incorrect out of 39 (66.00%)
+Learning decision tree
+Decision tree for train_6.txt has been learned
+File test_6.txt::24 incorrect out of 39 (61.00%)
+Learning decision tree
+Decision tree for train_7.txt has been learned
+File test_7.txt::30 incorrect out of 39 (76.00%)
+Learning decision tree
+Decision tree for train_8.txt has been learned
+File test_8.txt::28 incorrect out of 39 (71.00%)
+Learning decision tree
+Decision tree for train_9.txt has been learned
+File test_9.txt::28 incorrect out of 46 (60.00%)
+Total error: 68.51%
