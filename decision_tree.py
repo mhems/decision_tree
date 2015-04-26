@@ -9,6 +9,9 @@ import math
 import pydot
 
 TARGET = 'genre'
+SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
+val_path = SALAMI_path + 'validations/'
+run_path = SALAMI_path + 'runs/'
 
 def entropy(array):
     freq_dict = {}
@@ -52,11 +55,13 @@ def find_optimal_split(dataset):
     return best_gain, best_axis, best_threshold
     
 class DTreeNode:
+    i = 0
     def __init__(self,val,col=-1,l=None,r=None):
         self.value = val
         self.col = col
         self.left = l
         self.right = r
+        self.count = DTreeNode.i
 
     def decide (self, datarow):
         if self.isLeaf():
@@ -69,29 +74,42 @@ class DTreeNode:
         return self.left is None and self.right is None
 
     def getDescription(self):
+        DTreeNode.i += 1
         if self.isLeaf():
-            return repr(self.value)
+            return "%s\n%d" % (self.value, self.count)
         else:
-            return "%s < %d" % (self.col, self.value)
+            return "%s < %d\n%d" % (self.col, self.value, self.count)
 
     def getVertex(self):
         return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor());
 
     def __getColor(self):
-        if (self.value == "Blues" or self.col == "num_bars" or self.col == "avg_bar_len"):
-            color = "blue"
-        elif (self.value == "Classical" or self.col == "num_beats" or self.col == "avg_beat_len"):
-            color = "blue"
-        elif (self.value == "Jazz" or self.col == "num_tatums" or self.col == "avg_tatum_len"):
-            color = "red"
-        elif (self.value == "R&B" or self.col == "num_sections" or self.col == "avg_section_len"):
-            color = "yellow"
-        elif (self.value == "Rock" or self.col == "tempo_val"):
-            color = "green"
-        elif (self.value == "World" or self.col == "duration"):
-            color = "purple"
+        if (self.isLeaf()):
+            if self.value == "Blues":
+                color = "blue"
+            elif self.value == "Classical":
+                color = "orange"
+            elif self.value == "Jazz":
+                color = "red"
+            elif self.value == "R&B":
+                color = "yellow"
+            elif self.value == "Rock":
+                color = "green"
+            elif self.value == "World":
+                color = "pink"
         else:
-            color = "white"
+            if self.col == "num_bars" or self.col == "avg_bar_len":
+                color = "black"
+            elif self.col == "num_beats" or self.col == "avg_beat_len":
+                color = "white"
+            elif self.col == "num_tatums" or self.col == "avg_tatum_len":
+                color = "khaki"
+            elif self.col == "num_sections" or self.col == "avg_section_len":
+                color = "orchid"
+            elif self.col == "tempo_val":
+                color = "lavender"
+            elif self.col == "duration":
+                color = "brown"
         return color
 
 def num_groups(dataset):
@@ -112,12 +130,20 @@ class DTree:
     def __init__(self, filename):
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
-
         print 'Learning decision tree'
         graph = pydot.Dot(graph_type='digraph')
         self.root = learn_decision_tree(dataframe, graph)
         print 'Decision tree for %s has been learned' % filename
+        print 'Max. depth: %d' % self.length()
         graph.write_png('%s.png' % filename)
+        
+    def length(self):
+        return self.__len(self.root)
+
+    def __len(self, node):
+        if node.isLeaf():
+            return 0
+        return max(self.__len(node.left), self.__len(node.right)) + 1
 
     def decide (self, datarow):
         return self.decide_rec(self.root, datarow)
@@ -132,6 +158,7 @@ def learn_decision_tree(dataset, graph):
     if num_groups(dataset) == 1:
         cls = re.split('[ \t\n\r]+',repr(dataset['genre']))[1]
         #print("  LEAF: '%s'" % (cls))
+        DTreeNode.i += 1
         return DTreeNode(cls)
     #print("  INTERNAL %d %d" % (num_groups(dataset),len(dataset)))
     _,axis,threshold = find_optimal_split(dataset)
@@ -139,9 +166,10 @@ def learn_decision_tree(dataset, graph):
         raise Exception
     left_subset  = dataset[dataset[axis] <  threshold]
     left_node    = learn_decision_tree(left_subset, graph)
-    left_vertex  = left_node.getVertex()
     right_subset = dataset[dataset[axis] >= threshold]    
     right_node   = learn_decision_tree(right_subset, graph)
+
+    left_vertex  = left_node.getVertex()
     right_vertex = right_node.getVertex()
     graph.add_node(left_vertex)
     graph.add_node(right_vertex)
@@ -164,7 +192,7 @@ def test_tree (train_fn,test_fn):
 #        print ID, guess, truth
         if guess != truth:
             wrong += 1
-    print 'File %s::%d incorrect out of %d (%.2f%%)' % (test_fn,wrong,total,wrong * 100 / total)
+    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (test_fn,wrong,total, (total-wrong) * 100.0 / total)
     return (wrong,total)
 
 # given filename and K (num. chunks), make files
@@ -178,13 +206,13 @@ def gen_cross_validation_files(filename, K):
     chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
     chunks.append(lines[chunksize*(K-1):])
     for i, c in enumerate(chunks):
-        test_f = open("test_%d.txt" % i, 'w')
+        test_f = open("%stest_%d.csv" % (val_path,i), 'w')
         test_f.write(header)
         test_f.writelines(c)
         rest = []
         [rest.extend(r) for r in chunks[0:i]]
         [rest.extend(r) for r in chunks[i+1:]]
-        train_f = open("train_%d.txt" % i, 'w')
+        train_f = open("%strain_%d.csv" % (val_path,i), 'w')
         train_f.write(header)
         train_f.writelines(rest)
 
@@ -192,7 +220,7 @@ def cross_validate(K):
     acc_wrong = 0.0
     acc_total = 0.0
     for i in range(0,K):
-        wrong, total = test_tree('train_%d.txt' % i, 'test_%d.txt' % i)
+        wrong, total = test_tree('%strain_%d.csv' % (val_path,i), '%stest_%d.csv' % (val_path,i))
         acc_wrong += wrong
         acc_total += total
     err = acc_wrong/acc_total
@@ -200,14 +228,12 @@ def cross_validate(K):
     return err
 
 if __name__ == '__main__':
-    SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/runs/'
-    big = '/home/matt/Development/cs580/project/repo/salami_data/first.csv'
-#    gen_cross_validation_files(big, 10)
+#    gen_cross_validation_files(SALAMI_path + 'first.csv', 10)
     err = cross_validate(10)
 
 #    for i in range(1,2):#11):
-#        test_tree(SALAMI_path + 'train_' + repr(i) + '.csv',
-#                  SALAMI_path + 'test_'  + repr(i) + '.csv')
+#        test_tree(run_path + 'train_' + repr(i) + '.csv',
+#                  run_path + 'test_'  + repr(i) + '.csv')
 #        print '*' * 10
 
 def rec_print(node, indent):
