@@ -19,7 +19,9 @@ def random_partition(lines, percent):
         s.add(int(rand() * (train_no - len(s) - 1)))
     for e in s:
         test.append(train[e])
-    for e in s:
+    sorted = list(s)
+    sorted.sort(reverse=True)
+    for e in sorted:
         train.pop(e)
     return (train,test)
 
@@ -31,10 +33,10 @@ if __name__ == '__main__':
     if percent_test < 0 or percent_test > 100:
         print 'invalid percent'
         sys.exit(1)
-    filenam = sys.argv[1]
-    train_n = 'train_' + filenam
-    test_n  = 'test_'  + filenam
-    par_f   = open(filenam)
+    filename = sys.argv[1]
+    train_n = 'train_' + filename
+    test_n  = 'test_'  + filename
+    par_f   = open(filename)
     train_f = open(train_n, 'w')
     test_f  = open(test_n, 'w')
     lines  = par_f.readlines()

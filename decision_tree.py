@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 
+from random import random as rand
 import pandas as pd
 import numpy as np
 import math
@@ -11,11 +12,11 @@ import sys
 
 TARGET = 'genre'
 SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
-val_path = SALAMI_path + 'validations/'
+val_path = SALAMI_path + 'rand_validation/'
 run_path = SALAMI_path + 'runs/'
 
-BY_GAIN = False
-BY_FREQ = False
+BY_GAIN    = False
+BY_FREQ    = False
 SAVE_GRAPH = False
 
 def entropy(array):
@@ -184,7 +185,7 @@ def learn_decision_tree(dataset, graph):
     if axis == None or axis == '':
         raise Exception
     if BY_GAIN:
-        if gain < 0.1275:
+        if gain < 0.1375:
             grps = dataset.groupby(TARGET).groups
             max_val = 0
             for cat in grps:
@@ -236,6 +237,35 @@ def test_tree (train_fn,test_fn):
     print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (test_fn,wrong,total, (total-wrong) * 100.0 / total)
     return (wrong,total)
 
+def getContiguousPartitions(lines, chunksize):
+    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
+    chunks.append(lines[chunksize*(K-1):])
+    return chunks
+
+# return removed amt lines from lines
+def getLinesRandomly(lines, amt):
+    indices = set()
+    ret = []
+    while len(indices) < amt and len(lines) > 0:
+        indices.add(int(rand() * len(lines)))
+    for i in indices:
+        ret.append(lines[i])
+    indices = list(indices)
+    indices.sort(reverse=True)
+    for idx in indices:
+        lines.pop(idx)
+    return (ret, lines)
+
+def getRandomPartitions(lines, chunksize, K):
+    ret = []
+    i = 0
+    while i < K - 1:
+        t, lines = getLinesRandomly(lines, chunksize)
+        ret.append(t)
+        i += 1
+    ret.append(lines)
+    return ret
+
 # given filename and K (num. chunks), make files
 def gen_cross_validation_files(filename, K):
     superfile = open(filename,'r')
@@ -244,8 +274,10 @@ def gen_cross_validation_files(filename, K):
     lines  = all_lines[1:]
     num_lines = len(lines)
     chunksize = num_lines/K
-    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
-    chunks.append(lines[chunksize*(K-1):])
+#    chunks = getContiguousPartitions(lines, chunksize)
+    chunks = getRandomPartitions(lines, chunksize, K)
+#    print chunks
+#    return
     for i, c in enumerate(chunks):
         test_f = open("%stest_%d.csv" % (val_path,i), 'w')
         test_f.write(header)
