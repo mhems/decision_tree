@@ -160,6 +160,19 @@ class DTree:
             return dec
         return self.decide_rec(dec, datarow)
 
+    def prettyPrint(self):
+        self.rec_print(self.root,"")
+
+    def rec_print(self, node, indent):
+        s = ' ' * indent
+        if (node.left != None):
+            print (s + 'if %s < %f:' % (node.col, node.value))
+            self.rec_print(node.left, indent + 2)
+            print (s + 'else: # %s %f' % (node.col, node.value))
+            self.rec_print(node.right, indent + 2)
+        else:
+            print s + 'return ' + repr(node.value)
+
 def learn_decision_tree(dataset, graph):
     if num_groups(dataset) == 1:
         cls = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
@@ -171,7 +184,7 @@ def learn_decision_tree(dataset, graph):
     if axis == None or axis == '':
         raise Exception
     if BY_GAIN:
-        if gain < 0.1:
+        if gain < 0.1275:
             grps = dataset.groupby(TARGET).groups
             max_val = 0
             for cat in grps:
@@ -256,13 +269,14 @@ def cross_validate(K):
     return err
 
 if __name__ == '__main__':
-    if sys.argc < 2 || sys.argc > 3:
+    argc = len(sys.argv)
+    if argc < 2 or argc > 3:
         print 'Usage: %s -m|-v|-r [-g|-f]' % sys.argv[0]
         sys.exit(1)
     if sys.argv[1] == '-m':
         gen_cross_validation_files(SALAMI_path + 'first.csv', 10)
     elif sys.argv[1] == '-v':
-        if sys.argc > 2:
+        if argc > 2:
             if sys.argv[2] == '-g':
                 BY_GAIN = True
             elif sys.argv[2] == 'f':
@@ -274,12 +288,3 @@ if __name__ == '__main__':
                       run_path + 'test_'  + repr(i) + '.csv')
             print '*' * 10
 
-def rec_print(node, indent):
-    s = ' ' * indent
-    if (node.left != None):
-        print (s + 'if %s < %f:' % (node.col, node.value))
-        rec_print(node.left, indent + 2)
-        print (s + 'else:' % (node.col, node.value))
-        rec_print(node.right, indent + 2)
-    else:
-        print s + 'return ' + repr(node.value)
