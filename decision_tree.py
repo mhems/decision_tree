@@ -7,11 +7,16 @@ import re
 import glob
 import math
 import pydot
+import sys
 
 TARGET = 'genre'
 SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
 val_path = SALAMI_path + 'validations/'
 run_path = SALAMI_path + 'runs/'
+
+BY_GAIN = False
+BY_FREQ = False
+SAVE_GRAPH = False
 
 def entropy(array):
     freq_dict = {}
@@ -135,7 +140,8 @@ class DTree:
         self.root = learn_decision_tree(dataframe, graph)
         print 'Decision tree for %s has been learned' % filename
         print 'Max. depth: %d' % self.length()
-        graph.write_png('%s.png' % filename)
+        if SAVE_GRAPH:
+            graph.write_png('%s.png' % filename)
         
     def length(self):
         return self.__len(self.root)
@@ -156,14 +162,36 @@ class DTree:
 
 def learn_decision_tree(dataset, graph):
     if num_groups(dataset) == 1:
-        cls = re.split('[ \t\n\r]+',repr(dataset['genre']))[1]
+        cls = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
         #print("  LEAF: '%s'" % (cls))
         DTreeNode.i += 1
         return DTreeNode(cls)
     #print("  INTERNAL %d %d" % (num_groups(dataset),len(dataset)))
-    _,axis,threshold = find_optimal_split(dataset)
+    gain,axis,threshold = find_optimal_split(dataset)
     if axis == None or axis == '':
         raise Exception
+    if BY_GAIN:
+        if gain < 0.1:
+            grps = dataset.groupby(TARGET).groups
+            max_val = 0
+            for cat in grps:
+                if len(grps[cat]) > max_val:
+                    max_val = len(grps[cat])
+                    max_col = cat
+            return DTreeNode(max_col)
+    elif BY_FREQ:
+        grps = dataset.groupby(TARGET).groups
+        N = len(dataset)
+        max_val = 0
+        for cat in grps:
+            if len(grps[cat]) > max_val:
+                max_val = len(grps[cat])
+                max_col = cat
+        print max_val * 1.0 / N
+        if max_val * 1.0 / N > 0.9:
+            return DTreeNode(max_col)
+        # if one group comprises sufficient percent of total, return that class
+
     left_subset  = dataset[dataset[axis] <  threshold]
     left_node    = learn_decision_tree(left_subset, graph)
     right_subset = dataset[dataset[axis] >= threshold]    
@@ -228,13 +256,23 @@ def cross_validate(K):
     return err
 
 if __name__ == '__main__':
-#    gen_cross_validation_files(SALAMI_path + 'first.csv', 10)
-    err = cross_validate(10)
-
-#    for i in range(1,2):#11):
-#        test_tree(run_path + 'train_' + repr(i) + '.csv',
-#                  run_path + 'test_'  + repr(i) + '.csv')
-#        print '*' * 10
+    if sys.argc < 2 || sys.argc > 3:
+        print 'Usage: %s -m|-v|-r [-g|-f]' % sys.argv[0]
+        sys.exit(1)
+    if sys.argv[1] == '-m':
+        gen_cross_validation_files(SALAMI_path + 'first.csv', 10)
+    elif sys.argv[1] == '-v':
+        if sys.argc > 2:
+            if sys.argv[2] == '-g':
+                BY_GAIN = True
+            elif sys.argv[2] == 'f':
+                BY_FREQ = True
+        err = cross_validate(10)
+    elif sys.argv[1] == '-r':
+        for i in range(1,11):
+            test_tree(run_path + 'train_' + repr(i) + '.csv',
+                      run_path + 'test_'  + repr(i) + '.csv')
+            print '*' * 10
 
 def rec_print(node, indent):
     s = ' ' * indent
