@@ -12,12 +12,14 @@ import sys
 
 TARGET = 'genre'
 SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
-val_path = SALAMI_path + 'rand_validation/'
+val_path = SALAMI_path + 'validations/'
 run_path = SALAMI_path + 'runs/'
 
 BY_GAIN    = False
 BY_FREQ    = False
 SAVE_GRAPH = False
+MIN_GAIN   = 0.125
+MIN_FREQ   = 0.9
 
 def entropy(array):
     freq_dict = {}
@@ -131,7 +133,6 @@ def getRelevantFeatures(dataset):
                          'key_val','key_conf','tempo_conf'
                        ], 1)
 
-
 class DTree:
     def __init__(self, filename):
         dataframe = pd.read_csv(filename)
@@ -184,8 +185,20 @@ def learn_decision_tree(dataset, graph):
     gain,axis,threshold = find_optimal_split(dataset)
     if axis == None or axis == '':
         raise Exception
+    if BY_GAIN and BY_FREQ:
+        if gain < MIN_GAIN:
+            grps = dataset.groupby(TARGET).groups
+            N = len(dataset)
+            max_val = 0
+            for cat in grps:
+                if len(grps[cat]) > max_val:
+                    max_val = len(grps[cat])
+                    max_col = cat
+            print max_val * 1.0 / N
+            if max_val * 1.0 / N > 0.9:
+                return DTreeNode(max_col)
     if BY_GAIN:
-        if gain < 0.1375:
+        if gain < MIN_GAIN:
             grps = dataset.groupby(TARGET).groups
             max_val = 0
             for cat in grps:
@@ -193,7 +206,7 @@ def learn_decision_tree(dataset, graph):
                     max_val = len(grps[cat])
                     max_col = cat
             return DTreeNode(max_col)
-    elif BY_FREQ:
+    if BY_FREQ:
         grps = dataset.groupby(TARGET).groups
         N = len(dataset)
         max_val = 0
@@ -202,10 +215,8 @@ def learn_decision_tree(dataset, graph):
                 max_val = len(grps[cat])
                 max_col = cat
         print max_val * 1.0 / N
-        if max_val * 1.0 / N > 0.9:
+        if max_val * 1.0 / N > MIN_FREQ:
             return DTreeNode(max_col)
-        # if one group comprises sufficient percent of total, return that class
-
     left_subset  = dataset[dataset[axis] <  threshold]
     left_node    = learn_decision_tree(left_subset, graph)
     right_subset = dataset[dataset[axis] >= threshold]    
@@ -276,8 +287,6 @@ def gen_cross_validation_files(filename, K):
     chunksize = num_lines/K
 #    chunks = getContiguousPartitions(lines, chunksize)
     chunks = getRandomPartitions(lines, chunksize, K)
-#    print chunks
-#    return
     for i, c in enumerate(chunks):
         test_f = open("%stest_%d.csv" % (val_path,i), 'w')
         test_f.write(header)
@@ -312,6 +321,9 @@ if __name__ == '__main__':
             if sys.argv[2] == '-g':
                 BY_GAIN = True
             elif sys.argv[2] == 'f':
+                BY_FREQ = True
+            elif sys.argv[2] == 'b':
+                BY_GAIN = True                
                 BY_FREQ = True
         err = cross_validate(10)
     elif sys.argv[1] == '-r':
