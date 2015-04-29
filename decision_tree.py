@@ -2,10 +2,7 @@
 
 from random import random as rand
 import pandas as pd
-import numpy as np
-import math
 import re
-import glob
 import math
 import pydot
 import sys
@@ -89,7 +86,7 @@ class DTreeNode:
             return "%s < %d\n%d" % (self.col, self.value, self.count)
 
     def getVertex(self):
-        return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor());
+        return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor())
 
     def __getColor(self):
         if (self.isLeaf()):
@@ -134,7 +131,7 @@ def getRelevantFeatures(dataset):
                        ], 1)
 
 class DTree:
-    def __init__(self, filename):
+    def __init__(self, filename, val_fn=None):
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
         print 'Learning decision tree'
@@ -142,6 +139,8 @@ class DTree:
         self.root = learn_decision_tree(dataframe, graph)
         print 'Decision tree for %s has been learned' % filename
         print 'Max. depth: %d' % self.length()
+        if val_fn is not None:
+            # post prune
         if SAVE_GRAPH:
             graph.write_png('%s.png' % filename)
         
@@ -308,6 +307,88 @@ def cross_validate(K):
     err = acc_wrong/acc_total
     print "Total error: %.2f%%" % (err*100)
     return err
+
+def getContiguousPartitions(lines, chunksize):
+    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
+    chunks.append(lines[chunksize*(K-1):])
+    return chunks
+
+# return removed amt lines from lines
+def getLinesRandomly(lines, amt):
+    indices = set()
+    ret = []
+    while len(indices) < amt and len(lines) > 0:
+        indices.add(int(rand() * len(lines)))
+    for i in indices:
+        ret.append(lines[i])
+    indices = list(indices)
+    indices.sort(reverse=True)
+    for idx in indices:
+        lines.pop(idx)
+    return (ret, lines)
+
+def getRandomPartitions(lines, chunksize, K):
+    ret = []
+    i = 0
+    while i < K - 1:
+        t, lines = getLinesRandomly(lines, chunksize)
+        ret.append(t)
+        i += 1
+    ret.append(lines)
+    return ret
+
+# given filename and K (num. chunks), make files
+def gen_cross_validation_files(filename, K):
+    superfile = open(filename,'r')
+    all_lines = superfile.readlines()
+    header = all_lines[0]
+    lines  = all_lines[1:]
+    num_lines = len(lines)
+    chunksize = num_lines/K
+#    chunks = getContiguousPartitions(lines, chunksize)
+    chunks = getRandomPartitions(lines, chunksize, K)
+    for i, c in enumerate(chunks):
+        test_f = open("%stest_%d.csv" % (val_path,i), 'w')
+        test_f.write(header)
+        test_f.writelines(c)
+        rest = []
+        [rest.extend(r) for r in chunks[0:i]]
+        [rest.extend(r) for r in chunks[i+1:]]
+        train_f = open("%strain_%d.csv" % (val_path,i), 'w')
+        train_f.write(header)
+        train_f.writelines(rest)
+
+def cross_validate(K):
+    acc_wrong = 0.0
+    acc_total = 0.0
+    for i in range(0,K):
+        wrong, total = test_tree('%strain_%d.csv' % (val_path,i), '%stest_%d.csv' % (val_path,i))
+        acc_wrong += wrong
+        acc_total += total
+    err = acc_wrong/acc_total
+    print "Total error: %.2f%%" % (err*100)
+    return err
+
+# filepath points to train and test files for cv
+# splits train into 1/5 4/5 tests for post-pruning
+def test_pruned_tree(filepath):
+    for i in range(0,10):
+        suffix = '_%d.csv' % i
+        train_fn = filepath + 'train' + suffix
+        val_fn   = filepath + 'val'   + suffix
+        test_fn  = filepath + 'test'  + suffix
+        tree = DTree(train_fn, val_fn)
+        df   = pd.read_csv(test_fn)
+        total = len(df)
+        wrong = 0
+        for _, row in df.iterrows():
+            ID = row['ID']
+            guess = dTree.decide(row)
+            truth = row['genre']
+            if guess != truth:
+                wrong += 1
+        print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (val_fn,wrong, total, (total-wrong) * 100.0 / total)
+    return (wrong, total)
 
 if __name__ == '__main__':
     argc = len(sys.argv)
