@@ -9,14 +9,15 @@ import sys
 
 TARGET = 'genre'
 SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
-val_path = SALAMI_path + 'validations/'
-run_path = SALAMI_path + 'runs/'
+val_path       = SALAMI_path + 'validations/'
+prune_val_path = SALAMI_path + 'prune_validation/'
+run_path       = SALAMI_path + 'runs/'
 
 BY_GAIN     = False
 BY_FREQ     = False
 GEN_VAL_SET = False
 POST_PRUNE  = False
-SAVE_GRAPH  = False
+SAVE_GRAPH  = True
 MIN_GAIN    = 0.125
 MIN_FREQ    = 0.9
 
@@ -126,7 +127,21 @@ class DTreeNode:
         if self.isLeaf():
             return "%s\n%d" % (self.value, self.count)
         else:
-            return "%s < %d\n%d" % (self.col, self.value, self.count)
+            return "%s < %f\n%d" % (self.col, self.value, self.count)
+
+    def toGraph(self, graph):
+        myNode = self.getVertex();
+        graph.add_node(myNode)
+        if self.isLeaf():
+            return myNode
+        else:
+            lNode = self.left.toGraph(graph)
+            rNode = self.right.toGraph(graph)
+            graph.add_node(lNode)
+            graph.add_node(rNode)
+            graph.add_edge(pydot.Edge(myNode, lNode))
+            graph.add_edge(pydot.Edge(myNode, rNode))
+            return myNode
 
     def getVertex(self):
         return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor())
@@ -147,7 +162,7 @@ class DTreeNode:
                 color = "pink"
         else:
             if self.col == "num_bars" or self.col == "avg_bar_len":
-                color = "black"
+                color = "grey"
             elif self.col == "num_beats" or self.col == "avg_beat_len":
                 color = "white"
             elif self.col == "num_tatums" or self.col == "avg_tatum_len":
@@ -159,6 +174,16 @@ class DTreeNode:
             elif self.col == "duration":
                 color = "brown"
         return color
+
+    def prettyPrint(self, indent):
+        s = ' ' * indent
+        if self.isLeaf():
+            print s + 'return ' + repr(self.value)
+        else:
+            print (s + 'if %s < %f:' % (self.col, self.value))
+            self.left.prettyPrint(indent + 2)
+            print (s + 'else: # %s %f' % (self.col, self.value))
+            self.right.prettyPrint(indent + 2)
 
 def num_groups(dataset):
     return len(dataset.groupby(TARGET).groups)
@@ -178,16 +203,21 @@ class DTree:
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
         print 'Learning decision tree'
-        graph = pydot.Dot(graph_type='digraph')
-        self.root = learn_decision_tree(dataframe, graph)
+        self.root = learn_decision_tree(dataframe)
         print 'Decision tree for %s has been learned' % getBaseName(filename)
         print 'Max. depth: %d' % self.length()
         if val_fn is not None:
             self.post_prune()
             print 'Pruned depth: %d' % self.length()
         if SAVE_GRAPH:
-            graph.write_png('%s.png' % filename)
+            self.toGraph().write_png('%s.png' % filename)
+        self.prettyPrint()
         
+    def toGraph(self):
+        graph = pydot.Dot(graph_type='digraph', ordering='out')
+        self.root.toGraph(graph)
+        return graph
+
     def length(self):
         return self.__len(self.root)
 
@@ -201,19 +231,10 @@ class DTree:
 
     def post_prune(self):
         node = self.root.getMaxReducingNode()
+        node.prune()
 
     def prettyPrint(self):
-        self.rec_print(self.root,"")
-
-    def rec_print(self, node, indent):
-        s = ' ' * indent
-        if (node.left != None):
-            print (s + 'if %s < %f:' % (node.col, node.value))
-            self.rec_print(node.left, indent + 2)
-            print (s + 'else: # %s %f' % (node.col, node.value))
-            self.rec_print(node.right, indent + 2)
-        else:
-            print s + 'return ' + repr(node.value)
+        self.root.prettyPrint(0)
 
 def getMajorityClass(dataset):
     grps = dataset.groupby(TARGET).groups
@@ -224,13 +245,11 @@ def getMajorityClass(dataset):
             max_col = cat
     return max_col, max_val
 
-def learn_decision_tree(dataset, graph):
+def learn_decision_tree(dataset):
     if num_groups(dataset) == 1:
         cls = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
-        #print("  LEAF: '%s'" % (cls))
         DTreeNode.i += 1
         return DTreeNode.makeLeaf(cls)
-    #print("  INTERNAL %d %d" % (num_groups(dataset),len(dataset)))
     gain,axis,threshold = find_optimal_split(dataset)
     if axis == None or axis == '':
         raise Exception
@@ -246,20 +265,10 @@ def learn_decision_tree(dataset, graph):
         if max_val * 1.0 / N > MIN_FREQ:
             return DTreeNode.makeLeaf(max_col)
     left_subset  = dataset[dataset[axis] <  threshold]
-    left_node    = learn_decision_tree(left_subset, graph)
+    left_node    = learn_decision_tree(left_subset)
     right_subset = dataset[dataset[axis] >= threshold]    
-    right_node   = learn_decision_tree(right_subset, graph)
-
-    left_vertex  = left_node.getVertex()
-    right_vertex = right_node.getVertex()
-    graph.add_node(left_vertex)
-    graph.add_node(right_vertex)
-    parent = DTreeNode(threshold, axis, max_col, left_node, right_node)
-    parent_vertex = parent.getVertex()
-    graph.add_node(parent_vertex)
-    graph.add_edge(pydot.Edge(parent_vertex, left_vertex))
-    graph.add_edge(pydot.Edge(parent_vertex, right_vertex))
-    return parent
+    right_node   = learn_decision_tree(right_subset)
+    return DTreeNode(threshold, axis, max_col, left_node, right_node)
 
 def test_tree (train_fn, test_fn, val_fn):
     dTree = DTree(train_fn, val_fn)
@@ -356,7 +365,7 @@ def getRandomPartitions(lines, chunksize, K):
     return ret
 
 # given filename and K (num. chunks), make files
-def gen_cross_validation_files(filename, K):
+def gen_cross_validation_files(path, filename, K):
     superfile = open(filename,'r')
     all_lines = superfile.readlines()
     header = all_lines[0]
@@ -366,7 +375,7 @@ def gen_cross_validation_files(filename, K):
 #    chunks = getContiguousPartitions(lines, chunksize)
     chunks = getRandomPartitions(lines, chunksize, K)
     for i, c in enumerate(chunks):
-        test_f = open("%stest_%d.csv" % (val_path,i), 'w')
+        test_f = open("%stest_%d.csv" % (path,i), 'w')
         test_f.write(header)
         test_f.writelines(c)
         r = -1
@@ -374,12 +383,12 @@ def gen_cross_validation_files(filename, K):
             r = int(rand()*K)
             while r == i:
                 r = int(rand()*K)
-            val_f = open('%sval_%d.csv' % (val_path, i), 'w')
+            val_f = open('%sval_%d.csv' % (path, i), 'w')
             val_f.write(header)
             val_f.writelines(chunks[r])
         rest = []
         [rest.extend(chunks[idx]) for idx in range(K) if idx != i and idx != r]
-        train_f = open("%strain_%d.csv" % (val_path,i), 'w')
+        train_f = open("%strain_%d.csv" % (path,i), 'w')
         train_f.write(header)
         train_f.writelines(rest)
 
@@ -406,7 +415,7 @@ if __name__ == '__main__':
     if sys.argv[1] == '-m':
         if sys.argv[2] == '-p':
             GEN_VAL_SET = True
-        gen_cross_validation_files(SALAMI_path + 'first.csv', K)
+        gen_cross_validation_files("new/", SALAMI_path + 'first.csv', K)
     elif sys.argv[1] == '-v':
         if argc > 2:
             if sys.argv[2] == '-g':
@@ -418,7 +427,7 @@ if __name__ == '__main__':
                 BY_FREQ = True
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
-        err = cross_validate(val_path, 1) # K
+        err = cross_validate(prune_val_path, 1) # K
     elif sys.argv[1] == '-r':
         for i in range(1,11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
