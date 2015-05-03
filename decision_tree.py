@@ -78,6 +78,7 @@ class DTreeNode:
         self.classification_error = 0
         self.num_seen             = 0
         self.prune_error          = 0
+        self.pruned               = False
 
     @classmethod
     def makeLeaf(cls, val):
@@ -117,17 +118,32 @@ class DTreeNode:
 
     def prune(self):
         print 'Pruning to %s, reduction: %d' % (self.majority_class, self.classification_error - self.prune_error)
-        self = DTreeNode.makeLeaf(self.majority_class)
+        self.val    = self.majority_class
+        self.col    = -1
+        self.left   = None
+        self.right  = None
+        self.pruned = True
 
     def isLeaf(self):
         return self.left is None and self.right is None
 
     def getDescription(self):
         DTreeNode.i += 1
+        diff = self.classification_error - self.prune_error
         if self.isLeaf():
-            return "%s\n%d" % (self.value, self.count)
+            return "%s\n%f\n%d" % (self.value, diff, self.count)
         else:
-            return "%s < %f\n%d" % (self.col, self.value, self.count)
+            return "%s < %f\n%f\n%d" % (self.col, self.value, diff, self.count)
+
+    def height(self):
+        if self.isLeaf():
+            return 0
+        return max(self.left.height(), self.right.height()) + 1
+
+    def size(self):
+        if self.isLeaf():
+            return 1
+        return self.left.size() + self.right.size() + 1
 
     def toGraph(self, graph):
         myNode = self.getVertex();
@@ -147,6 +163,8 @@ class DTreeNode:
         return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor())
 
     def __getColor(self):
+        if self.pruned:
+            return "black"
         if (self.isLeaf()):
             if self.value == "Blues":
                 color = "blue"
@@ -205,33 +223,34 @@ class DTree:
         print 'Learning decision tree'
         self.root = learn_decision_tree(dataframe)
         print 'Decision tree for %s has been learned' % getBaseName(filename)
-        print 'Max. depth: %d' % self.length()
+        print 'Height: %d' % self.height()
+        print self.size(), 'vertices'
         if val_fn is not None:
-            self.post_prune()
-            print 'Pruned depth: %d' % self.length()
+            self.post_prune(pd.read_csv(val_fn))
+        print self.size(), 'vertices'
         if SAVE_GRAPH:
             self.toGraph().write_png('%s.png' % filename)
-        self.prettyPrint()
-        
+
     def toGraph(self):
         graph = pydot.Dot(graph_type='digraph', ordering='out')
         self.root.toGraph(graph)
         return graph
 
-    def length(self):
-        return self.__len(self.root)
+    def height(self):
+        return self.root.height()
 
-    def __len(self, node):
-        if node.isLeaf():
-            return 0
-        return max(self.__len(node.left), self.__len(node.right)) + 1
+    def size(self):
+        return self.root.size()
 
     def decide (self, datarow):
         return self.root.decide(datarow)
 
-    def post_prune(self):
+    def post_prune(self, df):
+        for _, row in df.iterrows():
+            self.decide(row)
         node = self.root.getMaxReducingNode()
         node.prune()
+        print 'Pruned height: %d' % self.height()
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
@@ -323,10 +342,11 @@ def cross_validate(filepath, K):
     acc_total = 0.0
     for i in range(K):
         suffix = '_%d.csv' % i
-        train_fn = filepath + 'train' + suffix
-        test_fn  = filepath + 'test'  + suffix
+        train_fn = filepath + 'both' + suffix
+        test_fn  = filepath + 'test' + suffix
         val_fn   = None
         if POST_PRUNE:
+            train_fn = filepath + 'train' + suffix
             val_fn   = filepath + 'val' + suffix
         wrong, total = test_tree(train_fn, test_fn, val_fn)
         acc_wrong += wrong
@@ -391,20 +411,6 @@ def gen_cross_validation_files(path, filename, K):
         train_f = open("%strain_%d.csv" % (path,i), 'w')
         train_f.write(header)
         train_f.writelines(rest)
-
-def test_pruned_tree(filepath):
-    for i in range(0,10):
-        suffix = '_%d.csv' % i
-        train_fn = filepath + 'train' + suffix
-        val_fn   = filepath + 'val'   + suffix
-        test_fn  = filepath + 'test'  + suffix
-        tree = DTree(train_fn, val_fn)
-        df   = pd.read_csv(test_fn)
-        w, t = evaluate(val_fn, tree, df)
-        wrong += w
-        total += t
-    print 'Averaged %d incorrect out of total %d (%f%%)' % (wrong, total, (wrong * 100.0)/total)
-    return (wrong, total)
 
 if __name__ == '__main__':
     K = 10
