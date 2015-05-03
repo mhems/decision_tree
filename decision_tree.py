@@ -219,17 +219,14 @@ class DTree:
     def __init__(self, filename, val_fn=None):
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
-        print 'Learning decision tree'
         self.root = learn_decision_tree(dataframe)
         print 'Decision tree for %s has been learned' % getBaseName(filename)
-        print 'Height: %d Vertices: %d' % self.height(), self.size()
-        if SAVE_GRAPH:
-            self.toGraph().write_png('%s.png' % filename)
+        print 'Height: %d Vertices: %d' % (self.height(), self.size())
         if val_fn is not None:
             self.post_prune(pd.read_csv(val_fn))
-            print self.size(), 'vertices after pruning'
-            if SAVE_GRAPH:
-                self.toGraph().write_png('pruned_%s.png' % filename)
+            print 'Pruned height: %d Pruned size: %d' % (self.height(), self.size())
+        if SAVE_GRAPH:
+            self.toGraph().write_png('%s.png' % filename)
 
     def toGraph(self):
         graph = pydot.Dot(graph_type='digraph', ordering='out')
@@ -250,7 +247,6 @@ class DTree:
             self.decide(row)
         node = self.root.getMaxReducingNode()
         node.prune()
-        print 'Pruned height: %d' % self.height()
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
@@ -406,11 +402,16 @@ def gen_cross_validation_files(path, filename, K):
             val_f = open('%sval_%d.csv' % (path, i), 'w')
             val_f.write(header)
             val_f.writelines(chunks[r])
+            both_f = open('%sboth_%d.csv' % (path, i), 'w')
+            both_f.write(header)
+            both_f.writelines(chunks[r])
         rest = []
         [rest.extend(chunks[idx]) for idx in range(K) if idx != i and idx != r]
         train_f = open("%strain_%d.csv" % (path,i), 'w')
         train_f.write(header)
         train_f.writelines(rest)
+        if GEN_VAL_SET:
+            both_f.writelines(rest)
 
 if __name__ == '__main__':
     K = 10
