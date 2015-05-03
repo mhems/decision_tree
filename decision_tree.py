@@ -433,7 +433,7 @@ if __name__ == '__main__':
                 BY_FREQ = True
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
-        err = cross_validate(prune_val_path, 1) # K
+        err = cross_validate(prune_val_path, K)
     elif sys.argv[1] == '-r':
         for i in range(1,11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
