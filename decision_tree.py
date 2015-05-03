@@ -117,7 +117,6 @@ class DTreeNode:
                 return self
 
     def prune(self):
-        print 'Pruning to %s, reduction: %d' % (self.majority_class, self.classification_error - self.prune_error)
         self.val    = self.majority_class
         self.col    = -1
         self.left   = None
@@ -223,13 +222,14 @@ class DTree:
         print 'Learning decision tree'
         self.root = learn_decision_tree(dataframe)
         print 'Decision tree for %s has been learned' % getBaseName(filename)
-        print 'Height: %d' % self.height()
-        print self.size(), 'vertices'
-        if val_fn is not None:
-            self.post_prune(pd.read_csv(val_fn))
-        print self.size(), 'vertices'
+        print 'Height: %d Vertices: %d' % self.height(), self.size()
         if SAVE_GRAPH:
             self.toGraph().write_png('%s.png' % filename)
+        if val_fn is not None:
+            self.post_prune(pd.read_csv(val_fn))
+            print self.size(), 'vertices after pruning'
+            if SAVE_GRAPH:
+                self.toGraph().write_png('pruned_%s.png' % filename)
 
     def toGraph(self):
         graph = pydot.Dot(graph_type='digraph', ordering='out')
@@ -434,7 +434,9 @@ if __name__ == '__main__':
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
         err = cross_validate(prune_val_path, K)
+    # deprecated
     elif sys.argv[1] == '-r':
+        print 'Warning - deprecated code!'
         for i in range(1,11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
                       run_path + 'test_'  + repr(i) + '.csv')
