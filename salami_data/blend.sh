@@ -2,5 +2,7 @@
 
 for i in `seq 0 9`
 do
-    cat train_$i.csv val_$i.csv > both_$i.csv
+    grep -v 'ID' val_$i.csv > tmp
+    cat train_$i.csv tmp > both_$i.csv
 done
+rm -f tmp
