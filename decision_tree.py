@@ -130,9 +130,9 @@ class DTreeNode:
         DTreeNode.i += 1
         diff = self.classification_error - self.prune_error
         if self.isLeaf():
-            return "%s\n%f\n%d" % (self.value, diff, self.count)
+            return "%s\n%d   %d\n<%d>" % (self.value, self.classification_error, self.prune_error, self.count)
         else:
-            return "%s < %f\n%f\n%d" % (self.col, self.value, diff, self.count)
+            return "%s < %f\n%d   %d\n<%d>" % (self.col, self.value, self.classification_error, self.prune_error, self.count)
 
     def height(self):
         if self.isLeaf():
@@ -179,7 +179,7 @@ class DTreeNode:
                 color = "pink"
         else:
             if self.col == "num_bars" or self.col == "avg_bar_len":
-                color = "grey"
+                color = "sienna"
             elif self.col == "num_beats" or self.col == "avg_beat_len":
                 color = "white"
             elif self.col == "num_tatums" or self.col == "avg_tatum_len":
@@ -246,7 +246,9 @@ class DTree:
         for _, row in df.iterrows():
             self.decide(row)
         node = self.root.getMaxReducingNode()
-        node.prune()
+        if node.classification_error - node.prune_error > 0:
+            node.pruned = True
+#            node.prune()
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
@@ -434,7 +436,8 @@ if __name__ == '__main__':
                 BY_FREQ = True
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
-        err = cross_validate(prune_val_path, K)
+        debug_val_path = SALAMI_path + 'debug_prune/'
+        err = cross_validate(debug_val_path, 1)
     # deprecated
     elif sys.argv[1] == '-r':
         print 'Warning - deprecated code!'
