@@ -1,0 +1,54 @@
+Decision tree for train_0.csv has been learned
+Height: 14 Vertices: 291
+Pruned height: 14
+211 vertices after pruning
+File test_0.csv:: 28 incorrect out of 39 (28.21% correct)
+Decision tree for train_1.csv has been learned
+Height: 14 Vertices: 299
+Pruned height: 8
+79 vertices after pruning
+File test_1.csv:: 29 incorrect out of 39 (25.64% correct)
+Decision tree for train_2.csv has been learned
+Height: 14 Vertices: 275
+Pruned height: 10
+91 vertices after pruning
+File test_2.csv:: 32 incorrect out of 39 (17.95% correct)
+
+Decision tree for train_3.csv has been learned
+Height: 15 Vertices: 309
+Pruned height: 9
+33 vertices after pruning
+File test_3.csv:: 38 incorrect out of 39 (2.56% correct)
+
+Decision tree for train_4.csv has been learned
+Height: 18 Vertices: 289
+Pruned height: 14
+255 vertices after pruning
+
+File test_4.csv:: 27 incorrect out of 39 (30.77% correct)
+Decision tree for train_5.csv has been learned
+Height: 15 Vertices: 285
+Pruned height: 15
+233 vertices after pruning
+File test_5.csv:: 35 incorrect out of 39 (10.26% correct)
+Decision tree for train_6.csv has been learned
+Height: 16 Vertices: 293
+Pruned height: 16
+279 vertices after pruning
+File test_6.csv:: 28 incorrect out of 39 (28.21% correct)
+Decision tree for train_7.csv has been learned
+Height: 15 Vertices: 281
+Pruned height: 11
+45 vertices after pruning
+File test_7.csv:: 36 incorrect out of 39 (7.69% correct)
+Decision tree for train_8.csv has been learned
+Height: 14 Vertices: 291
+Pruned height: 13
+221 vertices after pruning
+File test_8.csv:: 28 incorrect out of 39 (28.21% correct)
+Decision tree for train_9.csv has been learned
+Height: 16 Vertices: 277
+Pruned height: 16
+267 vertices after pruning
+File test_9.csv:: 31 incorrect out of 46 (32.61% correct)
+Total error: 78.59%
