@@ -13,6 +13,7 @@ val_path       = SALAMI_path + 'validations/'
 prune_val_path = SALAMI_path + 'prune_validation/'
 run_path       = SALAMI_path + 'runs/'
 
+#DEBUG       = True
 BY_GAIN     = False
 BY_FREQ     = False
 GEN_VAL_SET = False
@@ -88,14 +89,25 @@ class DTreeNode:
         truth = datarow['genre']
         self.num_seen += 1
         if self.isLeaf():
+            if DEBUG:
+                print 'Categorized as', self.value
             ret = self.value
         elif (datarow[self.col] < self.value):
+            if DEBUG:
+                print 'Going left  at %s < %f' % (datarow[self.col], self.value)
             ret = self.left.decide(datarow)
         else:
+            if DEBUG:
+                print 'Going right at %s < %f' % (datarow[self.col], self.value)
             ret = self.right.decide(datarow)
         if ret != truth:
+            if DEBUG:
+                print 'Incorrect: expected %s, received %s' % (truth, ret)
+                print 'Incrementing class error (%s)' % truth
             self.classification_error += 1
         if self.majority_class != truth:
+            if DEBUG:
+                print 'Incrementing prune error (%s)' % truth
             self.prune_error += 1
         return ret
 
@@ -117,7 +129,7 @@ class DTreeNode:
                 return self
 
     def prune(self):
-        self.val    = self.majority_class
+        self.value  = self.majority_class
         self.col    = -1
         self.left   = None
         self.right  = None
@@ -163,7 +175,7 @@ class DTreeNode:
 
     def __getColor(self):
         if self.pruned:
-            return "black"
+            return "cyan"
         if (self.isLeaf()):
             if self.value == "Blues":
                 color = "blue"
@@ -239,16 +251,17 @@ class DTree:
     def size(self):
         return self.root.size()
 
-    def decide (self, datarow):
-        return self.root.decide(datarow)
-
     def post_prune(self, df):
         for _, row in df.iterrows():
-            self.decide(row)
+            if DEBUG:
+                print 'Using', row['ID'], row['genre']
+            self.root.decide(row)
         node = self.root.getMaxReducingNode()
+        if DEBUG:
+            print (node.classification_error - node.prune_error)
         if node.classification_error - node.prune_error > 0:
             node.pruned = True
-#            node.prune()
+            node.prune()
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
@@ -260,6 +273,8 @@ def getMajorityClass(dataset):
         if len(grps[cat]) > max_val:
             max_val = len(grps[cat])
             max_col = cat
+    if DEBUG:
+        print 'Majority class %s (%d)' % (max_col, max_val)
     return max_col, max_val
 
 def learn_decision_tree(dataset):
@@ -289,21 +304,17 @@ def learn_decision_tree(dataset):
 
 def test_tree (train_fn, test_fn, val_fn):
     dTree = DTree(train_fn, val_fn)
-    df    = pd.read_csv(test_fn)
-    return evaluate(test_fn, dTree, df)
-
-# score dTree against df truth
-def evaluate(filename, dTree, df):
+    df = pd.read_csv(test_fn)
     wrong = 0
     total = len(df)
     for _, row in df.iterrows():
         ID = row['ID']
         guess = dTree.decide(row)
         truth = row['genre']
-#        print ID, guess, truth
         if guess != truth:
+            print ID
             wrong += 1
-    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (getBaseName(filename), wrong, total, (total-wrong) * 100.0 / total)
+    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (getBaseName(test_fn), wrong, total, (total-wrong) * 100.0 / total)
     return (wrong,total)
 
 def getContiguousPartitions(lines, chunksize):
@@ -346,7 +357,8 @@ def cross_validate(filepath, K):
         if POST_PRUNE:
             train_fn = filepath + 'train' + suffix
             val_fn   = filepath + 'val' + suffix
-        wrong, total = test_tree(train_fn, test_fn, val_fn)
+#        wrong, total = test_tree(train_fn, test_fn, val_fn)
+        wrong, total = test_tree(train_fn, val_fn, val_fn)
         acc_wrong += wrong
         acc_total += total
     err = acc_wrong/acc_total
@@ -429,7 +441,7 @@ if __name__ == '__main__':
         if argc > 2:
             if sys.argv[2] == '-g':
                 BY_GAIN = True
-            elif sys.argv[2] == '-f':
+            elif sys.argv[2] == 'c-f':
                 BY_FREQ = True
             elif sys.argv[2] == '-b':
                 BY_GAIN = True                
@@ -437,7 +449,12 @@ if __name__ == '__main__':
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
         debug_val_path = SALAMI_path + 'debug_prune/'
-        err = cross_validate(debug_val_path, 1)
+        if DEBUG:
+            tr = prune_val_path + 'train_2.csv'
+            v  = prune_val_path + 'val_2.csv'
+            test_tree (tr, v, v)
+        else:
+            err = cross_validate(prune_val_path, K)
     # deprecated
     elif sys.argv[1] == '-r':
         print 'Warning - deprecated code!'
