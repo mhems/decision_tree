@@ -253,16 +253,21 @@ class DTree:
         return self.root.decide(datarow)
 
     def post_prune(self, df):
-        for _, row in df.iterrows():
-            if DEBUG:
-                print 'Using', row['ID'], row['genre']
-            self.decide(row)
-        node = self.root.getMaxReducingNode()
-        if DEBUG:
+        diff = 0
+        while True:
+            for _, row in df.iterrows():
+                if DEBUG:
+                    print 'Using', row['ID'], row['genre']
+                self.decide(row)
+            node = self.root.getMaxReducingNode()
+#            if DEBUG:
             print (node.classification_error - node.prune_error)
-        if node.classification_error - node.prune_error > 0:
-            node.pruned = True
-            node.prune()
+            if node.classification_error - node.prune_error > diff:
+                node.pruned = True
+                node.prune()
+                diff = node.classification_error - node.prune_error
+            else:
+                break;
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
