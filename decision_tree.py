@@ -361,8 +361,7 @@ def cross_validate(filepath, K):
         if POST_PRUNE:
             train_fn = filepath + 'train' + suffix
             val_fn   = filepath + 'val' + suffix
-#        wrong, total = test_tree(train_fn, test_fn, val_fn)
-        wrong, total = test_tree(train_fn, val_fn, val_fn)
+        wrong, total = test_tree(train_fn, test_fn, val_fn)
         acc_wrong += wrong
         acc_total += total
     err = acc_wrong/acc_total
