@@ -13,7 +13,7 @@ val_path       = SALAMI_path + 'validations/'
 prune_val_path = SALAMI_path + 'prune_validation/'
 run_path       = SALAMI_path + 'runs/'
 
-#DEBUG       = True
+DEBUG       = False
 BY_GAIN     = False
 BY_FREQ     = False
 GEN_VAL_SET = False
@@ -251,11 +251,14 @@ class DTree:
     def size(self):
         return self.root.size()
 
+    def decide (self, datarow):
+        return self.root.decide(datarow)
+
     def post_prune(self, df):
         for _, row in df.iterrows():
             if DEBUG:
                 print 'Using', row['ID'], row['genre']
-            self.root.decide(row)
+            self.decide(row)
         node = self.root.getMaxReducingNode()
         if DEBUG:
             print (node.classification_error - node.prune_error)
