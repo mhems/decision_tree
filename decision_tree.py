@@ -315,7 +315,8 @@ def test_tree (train_fn, test_fn, val_fn):
         guess = dTree.decide(row)
         truth = row['genre']
         if guess != truth:
-            print ID
+            if DEBUG:
+                print ID
             wrong += 1
     print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (getBaseName(test_fn), wrong, total, (total-wrong) * 100.0 / total)
     return (wrong,total)
