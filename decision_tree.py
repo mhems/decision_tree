@@ -7,8 +7,8 @@ import math
 import pydot
 import sys
 
-TARGET = 'genre'
-SALAMI_path = '/home/matt/Development/cs580/project/repo/salami_data/'
+TARGET         = 'genre'
+SALAMI_path    = '/home/matt/Development/cs580/project/repo/salami_data/'
 val_path       = SALAMI_path + 'validations/'
 prune_val_path = SALAMI_path + 'prune_validation/'
 run_path       = SALAMI_path + 'runs/'
@@ -428,13 +428,13 @@ if __name__ == '__main__':
         gen_cross_validation_files("new/", SALAMI_path + 'first.csv', K)
     elif sys.argv[1] == '-v':
         if argc > 2:
-            if sys.argv[2] == '-g':
-                BY_GAIN = True
-            elif sys.argv[2] == 'c-f':
-                BY_FREQ = True
+            if   sys.argv[2] == '-g':
+                BY_GAIN    = True
+            elif sys.argv[2] == '-f':
+                BY_FREQ    = True
             elif sys.argv[2] == '-b':
-                BY_GAIN = True                
-                BY_FREQ = True
+                BY_GAIN    = True
+                BY_FREQ    = True
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
         err = cross_validate(prune_val_path, K)
