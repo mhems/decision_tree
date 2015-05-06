@@ -63,7 +63,6 @@ def find_optimal_split(dataset):
             if (gain > best_gain):
                 (best_gain,best_axis,best_threshold) = (gain,axis,threshold)
         axis_index += 1
-    group_dict = dataset.groupby(TARGET).groups
     return best_gain, best_axis, best_threshold
     
 class DTreeNode:
@@ -140,7 +139,6 @@ class DTreeNode:
 
     def getDescription(self):
         DTreeNode.i += 1
-        diff = self.classification_error - self.prune_error
         if self.isLeaf():
             return "%s\n%d   %d\n<%d>" % (self.value, self.classification_error, self.prune_error, self.count)
         else:
@@ -157,7 +155,7 @@ class DTreeNode:
         return self.left.size() + self.right.size() + 1
 
     def toGraph(self, graph):
-        myNode = self.getVertex();
+        myNode = self.getVertex()
         graph.add_node(myNode)
         if self.isLeaf():
             return myNode
@@ -321,35 +319,6 @@ def test_tree (train_fn, test_fn, val_fn):
     print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (getBaseName(test_fn), wrong, total, (total-wrong) * 100.0 / total)
     return (wrong,total)
 
-def getContiguousPartitions(lines, chunksize):
-    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
-    chunks.append(lines[chunksize*(K-1):])
-    return chunks
-
-# return removed amt lines from lines
-def getLinesRandomly(lines, amt):
-    indices = set()
-    ret = []
-    while len(indices) < amt and len(lines) > 0:
-        indices.add(int(rand() * len(lines)))
-    for i in indices:
-        ret.append(lines[i])
-    indices = list(indices)
-    indices.sort(reverse=True)
-    for idx in indices:
-        lines.pop(idx)
-    return (ret, lines)
-
-def getRandomPartitions(lines, chunksize, K):
-    ret = []
-    i = 0
-    while i < K - 1:
-        t, lines = getLinesRandomly(lines, chunksize)
-        ret.append(t)
-        i += 1
-    ret.append(lines)
-    return ret
-
 def cross_validate(filepath, K):
     acc_wrong = 0.0
     acc_total = 0.0
@@ -463,5 +432,6 @@ if __name__ == '__main__':
         print 'Warning - deprecated code!'
         for i in range(1,11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
-                      run_path + 'test_'  + repr(i) + '.csv')
+                      run_path + 'test_'  + repr(i) + '.csv',
+                      None)
             print '**********'
