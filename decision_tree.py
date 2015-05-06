@@ -18,7 +18,7 @@ BY_GAIN     = False
 BY_FREQ     = False
 GEN_VAL_SET = False
 POST_PRUNE  = False
-SAVE_GRAPH  = True
+SAVE_GRAPH  = False
 MIN_GAIN    = 0.125
 MIN_FREQ    = 0.9
 
@@ -60,7 +60,7 @@ def find_optimal_split(dataset):
             datum2 = uniq_data.iloc[index + 1, axis_index]
             threshold = datum1 + (abs(datum1 - datum2)/2)
             gain = information_gain(dataset,axis,threshold)
-            if (gain > best_gain):
+            if gain > best_gain:
                 (best_gain,best_axis,best_threshold) = (gain,axis,threshold)
         axis_index += 1
     return best_gain, best_axis, best_threshold
@@ -91,7 +91,7 @@ class DTreeNode:
             if DEBUG:
                 print 'Categorized as', self.value
             ret = self.value
-        elif (datarow[self.col] < self.value):
+        elif datarow[self.col] < self.value:
             if DEBUG:
                 print 'Going left  at %s < %f' % (datarow[self.col], self.value)
             ret = self.left.decide(datarow)
@@ -140,9 +140,14 @@ class DTreeNode:
     def getDescription(self):
         DTreeNode.i += 1
         if self.isLeaf():
-            return "%s\n%d   %d\n<%d>" % (self.value, self.classification_error, self.prune_error, self.count)
+            return "%s\n%d   %d\n<%d>" % (self.value,
+                                          self.classification_error,
+                                          self.prune_error, self.count)
         else:
-            return "%s < %f\n%d   %d\n<%d>" % (self.col, self.value, self.classification_error, self.prune_error, self.count)
+            return "%s < %f\n%d   %d\n<%d>" % (self.col,
+                                               self.value,
+                                               self.classification_error,
+                                               self.prune_error, self.count)
 
     def height(self):
         if self.isLeaf():
@@ -169,12 +174,14 @@ class DTreeNode:
             return myNode
 
     def getVertex(self):
-        return pydot.Node(self.getDescription(), style="filled", fillcolor=self.__getColor())
+        return pydot.Node(self.getDescription(),
+                          style="filled",
+                          fillcolor=self.__getColor())
 
     def __getColor(self):
         if self.pruned:
             return "cyan"
-        if (self.isLeaf()):
+        if self.isLeaf():
             if self.value == "Blues":
                 color = "blue"
             elif self.value == "Classical":
@@ -207,9 +214,9 @@ class DTreeNode:
         if self.isLeaf():
             print s + 'return ' + repr(self.value)
         else:
-            print (s + 'if %s < %f:' % (self.col, self.value))
+            print s + 'if %s < %f:' % (self.col, self.value)
             self.left.prettyPrint(indent + 2)
-            print (s + 'else: # %s %f' % (self.col, self.value))
+            print s + 'else: # %s %f' % (self.col, self.value)
             self.right.prettyPrint(indent + 2)
 
 def num_groups(dataset):
@@ -260,14 +267,14 @@ class DTree:
                     print 'Using', row['ID'], row['genre']
                 self.decide(row)
             node = self.root.getMaxReducingNode()
-#            if DEBUG:
-            print (node.classification_error - node.prune_error)
+            if DEBUG:
+                print node.classification_error - node.prune_error
             if node.classification_error - node.prune_error > diff:
                 node.pruned = True
                 node.prune()
                 diff = node.classification_error - node.prune_error
             else:
-                break;
+                break
 
     def prettyPrint(self):
         self.root.prettyPrint(0)
@@ -321,8 +328,12 @@ def test_tree (train_fn, test_fn, val_fn):
             if DEBUG:
                 print ID
             wrong += 1
-    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (getBaseName(test_fn), wrong, total, (total-wrong) * 100.0 / total)
-    return (wrong,total)
+    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (
+        getBaseName(test_fn),
+        wrong,
+        total,
+        (total-wrong) * 100.0 / total)
+    return (wrong, total)
 
 def cross_validate(filepath, K):
     acc_wrong = 0.0
@@ -330,6 +341,7 @@ def cross_validate(filepath, K):
     for i in range(K):
         suffix = '_%d.csv' % i
         train_fn = filepath + 'both' + suffix
+#        train_fn = filepath + 'train' + suffix
         test_fn  = filepath + 'test' + suffix
         val_fn   = None
         if POST_PRUNE:
@@ -425,17 +437,11 @@ if __name__ == '__main__':
                 BY_FREQ = True
             elif sys.argv[2] == '-p':
                 POST_PRUNE = True
-        debug_val_path = SALAMI_path + 'debug_prune/'
-        if DEBUG:
-            tr = prune_val_path + 'train_2.csv'
-            v  = prune_val_path + 'val_2.csv'
-            test_tree (tr, v, v)
-        else:
-            err = cross_validate(prune_val_path, K)
+        err = cross_validate(prune_val_path, K)
     # deprecated
     elif sys.argv[1] == '-r':
         print 'Warning - deprecated code!'
-        for i in range(1,11):
+        for i in range(1, 11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
                       run_path + 'test_'  + repr(i) + '.csv',
                       None)
