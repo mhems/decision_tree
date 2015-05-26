@@ -26,6 +26,9 @@ def getBaseName(filename):
     return re.sub('.*/', '', filename)
 
 def entropy(array):
+    """
+    Given array-like structure, compute its entropy
+    """
     freq_dict = {}
     for val in array:
         if val not in list(freq_dict):
@@ -40,6 +43,10 @@ def entropy(array):
     return entropy
 
 def information_gain(dataset, axis, threshold):
+    """
+    Given dataframe, column axis, and split threshold, 
+    compute information gain of splitting axis column of dataframe with threshold
+    """
     y = list(dataset[TARGET])
     ye = entropy(y)
     a = list(dataset[dataset[axis] <  threshold][TARGET])
@@ -49,6 +56,11 @@ def information_gain(dataset, axis, threshold):
     return ye - ae - be
 
 def find_optimal_split(dataset):
+    """
+    Given dataframe, determine optimal split (axis and threshold)
+    Uses a naive search to test each possible split on all axes
+    Returns the resulting optimal gain, optimal axis, and optimal threshold
+    """
     (best_gain,best_axis,best_threshold) = (0,0,0)
     axis_index = 0
     features = dataset.columns.tolist()[:-1]
@@ -82,9 +94,15 @@ class DTreeNode:
 
     @classmethod
     def makeLeaf(cls, val):
+        """
+        Factory method to construct a TreeNode with no children
+        """
         return cls(val, -1, val, None, None)
 
     def decide (self, datarow):
+        """
+        Given a datarow of a song, run data through node subtree to decide the song's genre
+        """
         truth = datarow['genre']
         self.num_seen += 1
         if self.isLeaf():
@@ -111,6 +129,10 @@ class DTreeNode:
         return ret
 
     def getMaxReducingNode(self):
+        """
+        For post-prune purposes, traverse annotated tree to find the node
+        that when pruned to a leaf, most reduces the classification error
+        """
         if self.isLeaf():
             return self
         else:
@@ -128,6 +150,10 @@ class DTreeNode:
                 return self
 
     def prune(self):
+        """
+        Prunes node to have no children
+        Value takes on most abundant genre 
+        """
         self.value  = self.majority_class
         self.col    = -1
         self.left   = None
@@ -135,9 +161,15 @@ class DTreeNode:
         self.pruned = True
 
     def isLeaf(self):
+        """
+        Returns True iff node has no children
+        """
         return self.left is None and self.right is None
 
     def getDescription(self):
+        """
+        Returns string description of node
+        """
         DTreeNode.i += 1
         if self.isLeaf():
             return "%s\n%d   %d\n<%d>" % (self.value,
@@ -150,16 +182,25 @@ class DTreeNode:
                                                self.prune_error, self.count)
 
     def height(self):
+        """
+        Returns height of self's subtree
+        """
         if self.isLeaf():
             return 0
         return max(self.left.height(), self.right.height()) + 1
 
     def size(self):
+        """
+        Returns number of vertices in self's subtree
+        """
         if self.isLeaf():
             return 1
         return self.left.size() + self.right.size() + 1
 
     def toGraph(self, graph):
+        """
+        Converts self subtree to pydot graph
+        """
         myNode = self.getVertex()
         graph.add_node(myNode)
         if self.isLeaf():
@@ -174,11 +215,17 @@ class DTreeNode:
             return myNode
 
     def getVertex(self):
+        """
+        Returns pydot vertex representation of self
+        """
         return pydot.Node(self.getDescription(),
                           style="filled",
                           fillcolor=self.__getColor())
 
     def __getColor(self):
+        """
+        Returns color of self for pydot representation
+        """
         if self.pruned:
             return "cyan"
         if self.isLeaf():
@@ -210,6 +257,9 @@ class DTreeNode:
         return color
 
     def prettyPrint(self, indent):
+        """
+        Pretty prints self subtree into if-else python code
+        """
         s = ' ' * indent
         if self.isLeaf():
             print s + 'return ' + repr(self.value)
@@ -220,10 +270,15 @@ class DTreeNode:
             self.right.prettyPrint(indent + 2)
 
 def num_groups(dataset):
+    """
+    Return number of genres in dataset
+    """
     return len(dataset.groupby(TARGET).groups)
 
 def getRelevantFeatures(dataset):
-    # strip away columns not used for learning
+    """
+    Drop columns of input data that are not relevant to learning
+    """
     return dataset.drop(['ID',
                          'std_bar_len','avg_bar_conf','std_bar_conf',
                          'std_beat_len', 'avg_beat_conf','std_beat_conf',
@@ -246,20 +301,35 @@ class DTree:
             self.toGraph().write_png('%s.png' % filename)
 
     def toGraph(self):
+        """
+        Returns pydot graphical representation of tree
+        """
         graph = pydot.Dot(graph_type='digraph', ordering='out')
         self.root.toGraph(graph)
         return graph
 
     def height(self):
+        """
+        Returns height of tree
+        """
         return self.root.height()
 
     def size(self):
+        """
+        Returns number of vertices in tree
+        """
         return self.root.size()
 
     def decide (self, datarow):
+        """
+        Decide genre for given song
+        """
         return self.root.decide(datarow)
 
     def post_prune(self, df):
+        """
+        Post-prune tree until no further reduction in classification error
+        """
         diff = 0
         while True:
             for _, row in df.iterrows():
@@ -277,9 +347,15 @@ class DTree:
                 break
 
     def prettyPrint(self):
+        """
+        Pretty prints tree into if-else python code
+        """
         self.root.prettyPrint(0)
 
 def getMajorityClass(dataset):
+    """
+    Given dataset, return most abundant genre
+    """
     grps = dataset.groupby(TARGET).groups
     max_val = 0
     for cat in grps:
@@ -291,6 +367,9 @@ def getMajorityClass(dataset):
     return max_col, max_val
 
 def learn_decision_tree(dataset):
+    """
+    Given dataframe, learn decision tree using optimal information gain
+    """
     if num_groups(dataset) == 1:
         cls = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
         DTreeNode.i += 1
@@ -316,6 +395,11 @@ def learn_decision_tree(dataset):
     return DTreeNode(threshold, axis, max_col, left_node, right_node)
 
 def test_tree (train_fn, test_fn, val_fn):
+    """
+    Learn tree on train_fn data, optionally post-prune on val_fn data
+    Evaluate tree on test_fn data
+    Returns number incorrect and number evaluated
+    """
     dTree = DTree(train_fn, val_fn)
     df = pd.read_csv(test_fn)
     wrong = 0
@@ -336,6 +420,9 @@ def test_tree (train_fn, test_fn, val_fn):
     return (wrong, total)
 
 def cross_validate(filepath, K):
+    """
+    K-fold cross-validation of files in filepath
+    """
     acc_wrong = 0.0
     acc_total = 0.0
     for i in range(K):
@@ -355,12 +442,17 @@ def cross_validate(filepath, K):
     return err
 
 def getContiguousPartitions(lines, chunksize):
+    """
+    Return contiguous partition of lines where as many partitions are size chunksize
+    """
     chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
     chunks.append(lines[chunksize*(K-1):])
     return chunks
 
-# return removed amt lines from lines
 def getLinesRandomly(lines, amt):
+    """
+    Remove amt lines randomnly from lines and return it
+    """
     indices = set()
     ret = []
     while len(indices) < amt and len(lines) > 0:
@@ -374,6 +466,9 @@ def getLinesRandomly(lines, amt):
     return (ret, lines)
 
 def getRandomPartitions(lines, chunksize, K):
+    """
+    Get K random partitions of lines of approximate size chunksize
+    """
     ret = []
     i = 0
     while i < K - 1:
@@ -385,6 +480,9 @@ def getRandomPartitions(lines, chunksize, K):
 
 # given filename and K (num. chunks), make files
 def gen_cross_validation_files(path, filename, K):
+    """
+    Generate K-fold cross validation files in path directory from filename
+    """
     superfile = open(filename,'r')
     all_lines = superfile.readlines()
     header = all_lines[0]
