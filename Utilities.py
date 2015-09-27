@@ -1,11 +1,7 @@
 import math
 
-TARGET = 'genre'
-
 def entropy(array):
-    """
-    Given array-like structure, compute its entropy
-    """
+    """Given array-like structure, compute its entropy"""
     freq_dict = {}
     for val in array:
         if val not in list(freq_dict):
@@ -21,14 +17,14 @@ def entropy(array):
 
 def information_gain(dataset, axis, threshold):
     """
-    Given dataframe, column axis, and split threshold, 
+    Given dataframe, column axis, and split threshold,
     compute information gain of splitting axis column of dataframe with threshold
     """
-    y = list(dataset[TARGET])
+    y = list(dataset['genre'])
     ye = entropy(y)
-    a = list(dataset[dataset[axis] <  threshold][TARGET])
+    a = list(dataset[dataset[axis] <  threshold]['genre'])
     ae = (1.0 * len(a)/len(y)) * entropy(a)
-    b = list(dataset[dataset[axis] >= threshold][TARGET])
+    b = list(dataset[dataset[axis] >= threshold]['genre'])
     be = (1.0 * len(b)/len(y)) * entropy(b)
     return ye - ae - be
 
@@ -53,18 +49,14 @@ def find_optimal_split(dataset):
                 (best_gain,best_axis,best_threshold) = (gain,axis,threshold)
         axis_index += 1
     return best_gain, best_axis, best_threshold
-    
+
 def num_groups(dataset):
-    """
-    Return number of genres in dataset
-    """
-    return len(dataset.groupby(TARGET).groups)
+    """Return number of genres in dataset"""
+    return len(dataset.groupby('genre').groups)
 
 def getMajorityClass(dataset):
-    """
-    Given dataset, return most abundant genre
-    """
-    grps = dataset.groupby(TARGET).groups
+    """Given dataset, return most abundant genre"""
+    grps = dataset.groupby('genre').groups
     max_val = 0
     for cat in grps:
         if len(grps[cat]) > max_val:
