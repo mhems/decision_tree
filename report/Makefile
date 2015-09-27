@@ -1,15 +1,11 @@
-TEX = latex
-PDF = dvipdf
-
+TEX = pdflatex
 TARGET = report
 
 all:
 	$(TEX) $(TARGET).tex
-	$(PDF) $(TARGET).dvi
+# compile twice to get references
+	$(TEX) $(TARGET).tex
+	rm -f $(TARGET).aux $(TARGET).log
 
 clean:
-	rm -f $(TARGET).aux $(TARGET).dvi $(TARGET).log
-
-cleanall:
-	rm -f $(TARGET).aux $(TARGET).dvi $(TARGET).log
 	rm -f $(TARGET).pdf

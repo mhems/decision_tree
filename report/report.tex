@@ -1,7 +1,9 @@
 \documentclass[11pt, twocolumn]{article}
 
-\begin{document}
+\usepackage{graphicx}
+\usepackage{url}
 
+\begin{document}
 
 \title{Using machine learning for content-based music analysis}
 \author{Matt Hems, Kevin Lopez\\
@@ -11,7 +13,7 @@
 \maketitle
 
 \begin{abstract}
-Over the course semester, we worked towards the goal of employing machine
+Over the course of the semester, we worked towards the goal of employing machine
 learning to see if content-based music analysis was feasible. Our work consists
 of gathering and assembling data annotated with music content and genre labels,
 and then training two learners on that dataset. We implement a decision tree
@@ -41,6 +43,14 @@ features as well as its genre. The annotations come from the EchoNest music
 platform which itself uses machine learning to annotate songs. For the purposes
 of this assignment, we assume all songs are annotated correctly and take these
 values at 100\% confidence.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\linewidth]{resources/chart.png}
+  \caption{Genre composition of SALAMI database subset}
+  \label{fig:chart}
+\end{figure}
+
     Of the 800 songs supplied the SALAMI database, 500 of them came with a
 genre  annotation and 400 of those belonged to a genre of non-trivial
 frequency. The genres these projects attempt to classify are Blues, R \& B,
@@ -50,8 +60,8 @@ belonged to a more general category. For example, the Country genre only
 appears eight times in the data set so to classify it would require a level of
 precision beyond the scope of this project. Subgenres of classical music, such
 as baroque and romantic, were merged into the overarching classical genre,
-likewise for rock and alternative rock. See Figure 1 for a complete breakdown
-of the genres.
+likewise for rock and alternative rock. See Figure~\ref{fig:chart} for a
+complete breakdown of the genres.
 
 \section{Background}
     Music analysis is a topic many machine learning researchers are interested
@@ -117,6 +127,32 @@ Blues, R \& B, Jazz, Rock, World, and Classical. We evaluate our decision tree
 using tenfold cross-validation with each song selected randomly. With our
 initial implementation, we earn a meager average accuracy rate of 28.7\%, where
 the average tree has height 15.4 and 289 vertices.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\linewidth]{resources/gain.png}
+  \caption{Using cross-validation to find minimum information gain threshold}
+  \label{fig:graph}
+\end{figure}
+
+\begin{table*}
+  \begin{center}
+    \begin{tabular}{ |c|c|c|c|c| }
+      \hline
+      Algorithm & Partition & Height & Number of Vertices & \% Correct \\
+      \hline
+      No pruning & 8:1 & 15.1 & 289 & 33.48 \\
+      No pruning & 9:1 & 15.4 & 289 & 28.68 \\
+      Pre-pruning & 8:1 & 5.4 & 21.4 & 35.09 \\
+      Pre-pruning & 9:1 & 4.6 & 14.2 & 35.31 \\
+      Post-pruning & 8:1:1 & 12.6 & 157.6 & 35.27 \\
+      \hline
+    \end{tabular}
+  \end{center}
+  \caption{Decision tree results across pruning methods}
+  \label{tab:results}
+\end{table*}
+
     To improve upon this, we first try pre-pruning, where a split’s
 information gain must be above a minimum threshold or else the node decomposes
 into a leaf whose genre is the most frequent genre in that node’s dataset.
@@ -124,12 +160,14 @@ This approach has the advantage of avoiding potentially useless search spaces
 at the cost of prematurely abandoning paths that have not had time to mature.
 For this approach, we use cross-validation to its intended application: the
 selection of a minimum threshold of information gain. We empirically obtain a
-minimum threshold of 0.125. Results can be seen in full in Figure 2 where we
-see the inverse relationship between tree height and accuracy which can be
-intuitively understood as complexity (overfitting) versus generalization. Using
-this minimum threshold, we achieve an accuracy of 35\%, a boost of 20\%. It is
-interesting to note that the average tree now has height 4.6 and 14 vertices.
-One problem with pre-pruning is its haste to prune an underrealized path.
+minimum threshold of 0.125. Results can be seen in full in Figure~\ref{fig:graph}
+where we see the inverse relationship between tree height and accuracy which can
+be intuitively understood as complexity (overfitting) versus generalization.
+Using this minimum threshold, we achieve an accuracy of 35\%, a boost of 20\%.
+It is interesting to note that the average tree now has height 4.6 and 14
+vertices. One problem with pre-pruning is its haste to prune an underrealized
+path.
+
     To combat this, we turn to post-pruning, where the tree grows to its
 natural depth, and is pruned afterwards. The tree is annotated in a bottom-up
 fashion with the error achieved and the hypothetical error if that node was
@@ -145,7 +183,7 @@ a 8:1:1 cross-validation scheme to obtain an accuracy rate of 35\% with the
 trees being of average height of 12.6 on 157.6 vertices. We note the empirical
 support of the theory - that pre-pruning produce the smallest trees and
 post-pruning forming a compromise between the two poles with optimal accuracy.
-A summary of results can be seen in Figure 3.
+A summary of results can be seen in Table~\ref{tab:results}.
 
 \subsection{k-means Clustering}
     For the k-means clustering algorithm, we wanted to see if genres naturally
@@ -160,23 +198,45 @@ training set (1/3 of the total, or 100 samples, randomly selected) and a
 testing set (the other 200 samples). The training set develops the clusters,
 choosing to label the clusters based on which labelling proves most accurate;
 that is, whichever combination provides the most correctly assigned genres for
-the samples in the training data. This part of the process is illustrated in
-Figure 4. Then, each point in the testing set is assigned to a cluster, and the
+the samples in the training data.
+% This part of the process is illustrated in Figure 4.
+% Then, each point in the testing set is assigned to a cluster, and the
 accuracy of the assignment is tested. This process is iterated multiple times,
 and the average accuracy is taken. The algorithm is repeated over different
 pairs of features.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{ |c|c|c| }
+      \hline
+      Feature 1 & Feature 2 & \% Correct \\
+      \hline
+      tempo & num. tatums & 8 \\
+      tempo & mean beat length & 12 \\
+      num beats & mean beat length & 8 \\
+      duration & num. sections & 13 \\
+      \hline
+    \end{tabular}
+  \end{center}
+  \caption{Accuracy ratings across various feature pairings}
+  \label{tab:accuracy}
+\end{table}
+
     Unfortunately, results were very low for this method. For example, running
 the algorithm over the features tempo (in bpm) and average beat length (that
 is, the average time interval between beats in the song) resulted in a 13\%
-accuracy rating. Other examples can be seen in Figure 5. This low prediction
-rating could be ascribed to the noise factor, since many samples had low
-feature confidence ratings, as mentioned in the introduction. It could also be
-attributed to the unreliability of the algorithm itself, since k-means is meant
-to detect well-defined clusters--as seen in Figure 4, the genres show much
-overlap. Finally, it may be that the tested genres actually sound and behave
-similar to each other, and are thus hard to predict with respect to the
-features provided by our dataset. Perhaps with more features to test on, more
-obvious groupings could have revealed themselves.
+accuracy rating. Other examples can be seen in Table~\ref{tab:accuracy}. This
+low prediction rating could be ascribed to the noise factor, since many samples
+had low feature confidence ratings, as mentioned in the introduction. It could
+also be attributed to the unreliability of the algorithm itself, since k-means
+is meant to detect well-defined clusters
+% --as seen in Figure 4,
+the genres show much overlap. Finally, it may be that the tested genres actually
+sound and behave similar to each other, and are thus hard to predict with
+respect to the features provided by our dataset. Perhaps with more features to
+test on, more obvious groupings could have revealed themselves.
+\vfill
+\eject
 
 \begin{thebibliography}{9}
 \bibitem{blimes}
@@ -185,9 +245,9 @@ Techniques for
       Representing, Learning, and Reproducing Expressive Timing in Percussive
 Rhythm”
 \bibitem{mcgill}
-      https://ddmal.music.mcgill.ca/research/salami/annotations
+      \path{https://ddmal.music.mcgill.ca/ research/salami/annotations}
 \bibitem{labrosa}
-      http://labrosa.ee.columbia.edu/
+      \path{http://labrosa.ee.columbia.edu/}
 \bibitem{similarity}
       B. McFee, G. Lanckriet. “Large-Scale Music Similarity Search with
 Spatial Trees”
@@ -207,38 +267,5 @@ Representation for Music Information Retrieval”
       B. McFee, D. Ellis. “Analyzing song structure with spectral
 clustering”
 \end{thebibliography}
-
-\begin{table}
-  \begin{center}
-    \begin{tabular}{ |c|c|c|c|c| }
-      \hline
-      Algorithm & Partition & Height & Number of Vertices & \% Correct \\
-      \hline
-      No pruning & 8:1 & 15.1 & 289 & 33.48 \\
-      No pruning & 9:1 & 15.4 & 289 & 28.68 \\
-      Pre-pruning & 8:1 & 5.4 & 21.4 & 35.09 \\
-      Pre-pruning & 9:1 & 4.6 & 14.2 & 35.31 \\
-      Post-pruning & 8:1:1 & 12.6 & 157.6 & 35.27 \\
-      \hline
-    \end{tabular}
-  \end{center}
-  \caption{Decision tree results across pruning methods}
-\end{table}
-
-\begin{table}
-  \begin{center}
-    \begin{tabular}{ |c|c|c| }
-      \hline
-      Feature 1 & Feature 2 & \% Correct \\
-      \hline
-      tempo & num. tatums & 8 \\
-      tempo & mean beat length & 12 \\
-      num beats & mean beat length & 8 \\
-      duration & num. sections & 13 \\
-      \hline
-    \end{tabular}
-  \end{center}
-  \caption{Accuracy ratings across various feature pairings}
-\end{table}
 
 \end{document}
