@@ -4,7 +4,7 @@ import pydot
 DEBUG = False
 
 genre_map = {
-    "Blues":     "blue", 
+    "Blues":     "blue",
     "Classical": "orange",
     "Jazz":      "red",
     "R&B":       "yellow",
@@ -14,7 +14,7 @@ genre_map = {
 
 feature_map = {
     "num_bars" :       "sienna",
-    "avg_bar_len":     "sienna", 
+    "avg_bar_len":     "sienna",
     "num_beats" :      "white",
     "avg_beat_len":    "white",
     "num_tatums" :     "khaki",
@@ -24,6 +24,35 @@ feature_map = {
     "tempo_val":       "lavender",
     "duration":        "brown"
 }
+
+class BinaryTree:
+    """Class representing full binary tree"""
+
+    def __init__(self, value, left=None, right=None):
+        self.value = value
+        self.left  = left
+        self.right = right
+
+    @property
+    def isLeaf(self):
+        """Return True iff tree has no children"""
+        return self.left is None and self.right is None
+
+    @property
+    def height(self):
+        """Return 1-based height of tree"""
+        if self.isLeaf:
+            return 1
+        else:
+            return 1 + max(self.left.height, self.right.height)
+
+    @property
+    def size(self):
+        """Return number of nodes in tree"""
+        if self.isLeaf:
+            return 1
+        else:
+            return 1 + self.left.size + self.right.size
 
 class DTreeNode:
     i = 0
@@ -47,34 +76,7 @@ class DTreeNode:
         """
         return cls(val, -1, val, None, None)
 
-    def decide (self, datarow):
-        """
-        Given a datarow of a song, run data through node subtree to decide the song's genre
-        """
-        truth = datarow['genre']
-        self.num_seen += 1
-        if self.isLeaf:
-            if DEBUG:
-                print('Categorized as', self.value)
-            ret = self.value
-        elif datarow[self.col] < self.value:
-            if DEBUG:
-                print('Going left  at %s < %f' % (datarow[self.col], self.value))
-            ret = self.left.decide(datarow)
-        else:
-            if DEBUG:
-                print('Going right at %s < %f' % (datarow[self.col], self.value))
-            ret = self.right.decide(datarow)
-        if ret != truth:
-            if DEBUG:
-                print('Incorrect: expected %s, received %s' % (truth, ret))
-                print('Incrementing class error (%s)' % truth)
-            self.classification_error += 1
-        if self.majority_class != truth:
-            if DEBUG:
-                print('Incrementing prune error (%s)' % truth)
-            self.prune_error += 1
-        return ret
+
 
     def getMaxReducingNode(self):
         """
@@ -100,7 +102,7 @@ class DTreeNode:
     def prune(self):
         """
         Prunes node to have no children
-        Value takes on most abundant genre 
+        Value takes on most abundant genre
         """
         self.value  = self.majority_class
         self.col    = -1
@@ -109,19 +111,12 @@ class DTreeNode:
         self.pruned = True
 
     @property
-    def isLeaf(self):
-        """
-        Returns True iff node has no children
-        """
-        return self.left is None and self.right is None
-
-    @property
     def description(self):
         """
         Returns string description of node
         """
         DTreeNode.i += 1
-        if self.isLeaf():
+        if self.isLeaf:
             return "%s\n%d   %d\n<%d>" % (self.value,
                                           self.classification_error,
                                           self.prune_error, self.count)
@@ -130,24 +125,6 @@ class DTreeNode:
                                                self.value,
                                                self.classification_error,
                                                self.prune_error, self.count)
-
-    @property
-    def height(self):
-        """
-        Returns height of self's subtree
-        """
-        if self.isLeaf:
-            return 0
-        return 1 + max(self.left.height, self.right.height)
-
-    @property
-    def size(self):
-        """
-        Returns number of vertices in self's subtree
-        """
-        if self.isLeaf:
-            return 1
-        return 1 + self.left.size + self.right.size
 
     def toGraph(self, graph):
         """
@@ -175,23 +152,10 @@ class DTreeNode:
         elif self.isLeaf:
             color = genre_map[self.value]
         else:
-            color = feature_map[self.col]            
+            color = feature_map[self.col]
         return pydot.Node(self.getDescription(),
                           style="filled",
                           fillcolor=color)
-
-    def prettyPrint(self, indent):
-        """
-        Pretty prints self subtree into if-else python code
-        """
-        s = ' ' * indent
-        if self.isLeaf:
-            print(s + 'return ' + repr(self.value))
-        else:
-            print(s + 'if %s < %f:' % (self.col, self.value))
-            self.left.prettyPrint(indent + 2)
-            print(s + 'else: # %s %f' % (self.col, self.value))
-            self.right.prettyPrint(indent + 2)
 
 class DTree:
 
@@ -210,6 +174,14 @@ class DTree:
         if SAVE_GRAPH:
             self.toGraph().write_png('%s.png' % filename)
 
+    @property
+    def size(self):
+        return self.root.size
+
+    @property
+    def height(self):
+        return self.root.height
+
     def toGraph(self):
         """
         Returns pydot graphical representation of tree
@@ -218,25 +190,39 @@ class DTree:
         self.root.toGraph(graph)
         return graph
 
-    @property
-    def height(self):
-        """
-        Returns height of tree
-        """
-        return self.root.height
-
-    @property
-    def size(self):
-        """
-        Returns number of vertices in tree
-        """
-        return self.root.size
-
     def decide (self, datarow):
         """
         Decide genre for given song
         """
-        return self.root.decide(datarow)
+        def decide_ (node, datarow_):
+            """
+            Given a datarow of a song, run data through node subtree to decide the song's genre
+            """
+            truth = datarow_['genre']
+            node.num_seen += 1
+            if node.isLeaf:
+                if DEBUG:
+                    print('Categorized as', node.value)
+                ret = node.value
+            elif datarow_[node.col] < node.value:
+                if DEBUG:
+                    print('Going left  at %s < %f' % (datarow_[node.col], node.value))
+                ret = node.left.decide(datarow_)
+            else:
+                if DEBUG:
+                    print('Going right at %s < %f' % (datarow_[node.col], node.value))
+                ret = node.right.decide(datarow_)
+            if ret != truth:
+                if DEBUG:
+                    print('Incorrect: expected %s, received %s' % (truth, ret))
+                    print('Incrementing class error (%s)' % truth)
+                node.classification_error += 1
+            if node.majority_class != truth:
+                if DEBUG:
+                    print('Incrementing prune error (%s)' % truth)
+                node.prune_error += 1
+            return ret
+        return decide_(self.root, datarow)
 
     def post_prune(self, df):
         """
@@ -262,4 +248,13 @@ class DTree:
         """
         Pretty prints tree into if-else python code
         """
-        self.root.prettyPrint(0)
+        def prettyPrint_(node, indent):
+            s = ' ' * indent
+            if node.isLeaf:
+                print('%sreturn %s' % (s, node.value)
+            else:
+                print('%sif %s < %s:' % (s, node.col, node.value))
+                prettyPrint_(node.left, indent + 2)
+                print('%selse: # %s %s' % (s, node.col, node.value))
+                prettyPrint_(node.right, indent + 2)
+        prettyPrint_(self.root, 0)
