@@ -11,18 +11,12 @@ prune_val_path = SALAMI_path + 'prune_validation/'
 run_path       = SALAMI_path + 'runs/'
 
 DEBUG       = False
-BY_GAIN     = False
-BY_FREQ     = False
 GEN_VAL_SET = False
 POST_PRUNE  = False
 SAVE_GRAPH  = False
-MIN_GAIN    = 0.125
-MIN_FREQ    = 0.9
 
 def getRelevantFeatures(dataset):
-    """
-    Drop columns of input data that are not relevant to learning
-    """
+    """Drop columns of input data that are not relevant to learning"""
     return dataset.drop(['ID',
                          'std_bar_len',     'avg_bar_conf',    'std_bar_conf',
                          'std_beat_len',    'avg_beat_conf',   'std_beat_conf',
@@ -31,34 +25,6 @@ def getRelevantFeatures(dataset):
                          'key_val','key_conf',
                          'tempo_conf'],
                         1)
-
-def learn_decision_tree(dataset):
-    """
-    Given dataframe, learn decision tree using optimal information gain
-    """
-    if num_groups(dataset) == 1:
-        cls = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
-        DTreeNode.i += 1
-        return DTreeNode.makeLeaf(cls)
-    gain,axis,threshold = find_optimal_split(dataset)
-    if axis == None or axis == '':
-        raise Exception
-    max_col, max_val = getMajorityClass(dataset)
-    N = len(dataset)
-    if BY_GAIN and BY_FREQ:
-        if gain < MIN_GAIN and max_val * 1.0 / N > MIN_FREQ:
-            return DTreeNode.makeLeaf(max_col)
-    elif BY_GAIN:
-        if gain < MIN_GAIN:
-            return DTreeNode.makeLeaf(max_col)
-    elif BY_FREQ:
-        if max_val * 1.0 / N > MIN_FREQ:
-            return DTreeNode.makeLeaf(max_col)
-    left_subset  = dataset[dataset[axis] <  threshold]
-    left_node    = learn_decision_tree(left_subset)
-    right_subset = dataset[dataset[axis] >= threshold]    
-    right_node   = learn_decision_tree(right_subset)
-    return DTreeNode(threshold, axis, max_col, left_node, right_node)
 
 def test_tree (train_fn, test_fn, val_fn):
     """
@@ -73,7 +39,7 @@ def test_tree (train_fn, test_fn, val_fn):
     for _, row in df.iterrows():
         ID = row['ID']
         guess = dTree.decide(row)
-        truth = row[TARGET]
+        truth = row['genre']
         if guess != truth:
             if DEBUG:
                 print(ID)
@@ -109,7 +75,7 @@ def cross_validate(filepath, K):
 
 def getContiguousPartitions(lines, chunksize):
     """
-    Return contiguous partition of lines where as many partitions are size chunksize
+    Return contiguous partition of lines where as many partitions are chunksize
     """
     chunks = [lines[start:start+chunksize] for start in range(0,
                                                               (K-1)*chunksize,

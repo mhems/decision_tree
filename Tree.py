@@ -28,10 +28,15 @@ feature_map = {
 class BinaryTree:
     """Class representing full binary tree"""
 
-    def __init__(self, value, left=None, right=None):
-        self.value = value
+    def __init__(self, node, left=None, right=None):
+        self.node  = node
         self.left  = left
         self.right = right
+
+    @property
+    def node(self):
+        """Return data encapsulated in node"""
+        return self.node
 
     @property
     def isLeaf(self):
@@ -54,7 +59,7 @@ class BinaryTree:
         else:
             return 1 + self.left.size + self.right.size
 
-class DTreeNode:
+class DTreeData:
     """Encapsulate data for a node within a decision tree"""
     i = 0
 
@@ -62,66 +67,48 @@ class DTreeNode:
         self.value                = val
         self.col                  = col
         self.majority_class       = maj
-        # ugly hack so all pydot vertices are unique
+        # hack so all pydot vertices are unique
         self.count                = DTreeNode.i
         self.classification_error = 0
         self.num_seen             = 0
         self.prune_error          = 0
         self.pruned               = False
+        DTreeNode.i += 1
 
-    # move
-    def getMaxReducingNode(self):
-        """
-        For post-prune purposes, traverse annotated tree to find the node
-        that when pruned to a leaf, most reduces the classification error
-        """
-        if self.isLeaf:
-            return self
-        else:
-            left_n    = self.left.getMaxReducingNode()
-            right_n   = self.right.getMaxReducingNode()
-            left_red  = left_n.classification_error  - left_n.prune_error
-            right_red = right_n.classification_error - right_n.prune_error
-            my_red    = self.classification_error    - self.prune_error
-            max_red   = max(left_red, right_red, my_red)
-            if   max_red == left_red:
-                return left_n
-            elif max_red == right_red:
-                return right_n
-            else:
-                return self
-
-    # move
-    def prune(self):
-        """
-        Prunes Tree to have no children
-        Value takes on most abundant genre
-        """
-        self.value  = self.majority_class
-        self.col    = -1
-        self.left   = None
-        self.right  = None
-        self.pruned = True
+    @staticmethod
+    def byCategory(category):
+        return DTreeData(category, -1, category)
 
     @property
     def leaf_description(self):
         """Return string description of leaf node"""
-        DTreeNode.i += 1
         return "%s\n%d   %d\n<%d>" % (self.value,
                                       self.classification_error,
                                       self.prune_error, self.count)
     @property
     def description(self):
         """Return string description of non-leaf node"""
-        DTreeNode.i += 1
         return "%s < %f\n%d   %d\n<%d>" % (self.col,
                                            self.value,
                                            self.classification_error,
                                            self.prune_error, self.count)
+    def prune(self):
+        """Modify data to reflect pruning"""
+        self.value  = self.majority_class
+        self.col    = -1
 
 class DTree(BinaryTree):
 
-    def __init__(self, filename, val_fn=None):
+    BY_GAIN = 1
+    BY_FREQ = 2
+    BY_BOTH = 3
+    MIN_GAIN = 0.125
+    MIN_FREQ = 0.9
+
+    def __init__(self, data, left=None, right=None):
+        super().__init__(data, left, right)
+
+        # REFACTOR - this doesn't belong here
         dataframe = pd.read_csv(filename)
         dataframe = getRelevantFeatures(dataframe)
         self.root = learn_decision_tree(dataframe)
@@ -135,6 +122,36 @@ class DTree(BinaryTree):
                                                              self.size))
         if SAVE_GRAPH:
             self.toGraph().write_png('%s.png' % filename)
+
+    @staticmethod
+    def learn_decision_tree(dataset, method=DTree.BY_GAIN):
+        """
+        Given dataframe, learn decision tree using optimal information gain
+        """
+        if num_groups(dataset) == 1:
+            category = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
+            return DTree(DTreeData.byCategory(category))
+        gain,axis,threshold = find_optimal_split(dataset)
+        if axis == None or axis == '':
+            raise Exception
+        max_col, max_val = getMajorityClass(dataset)
+        N = len(dataset)
+        if method == DTree.BY_BOTH:
+            if gain < DTree.MIN_GAIN and float(max_val) / N > DTree.MIN_FREQ:
+                return DTreeData.byCategory(max_col)
+        elif method == DTree.BY_GAIN:
+            if gain < DTree.MIN_GAIN:
+                return DTreeData.byCategory(max_col)
+        elif method == DTree.BY_FREQ:
+            if max_val * 1.0 / N > DTree.MIN_FREQ:
+                return DTreeData.byCategory(max_col)
+        left_subset  = dataset[dataset[axis] <  threshold]
+        left_node    = learn_decision_tree(left_subset)
+        right_subset = dataset[dataset[axis] >= threshold]
+        right_node   = learn_decision_tree(right_subset)
+        return DTreeNode(DTreeData(threshold, axis, max_col),
+                         left_node,
+                         right_node)
 
     def toGraph(self):
         """Returns pydot graphical representation of tree"""
@@ -158,7 +175,7 @@ class DTree(BinaryTree):
                 graph.add_edge(pydot.Edge(vertex, rNode))
             return vertex
         graph = pydot.Dot(graph_type='digraph', ordering='out')
-        toGraph_(self.root, graph)
+        toGraph_(self, graph)
         return graph
 
     def decide (self, datarow):
@@ -188,6 +205,37 @@ class DTree(BinaryTree):
             self.prune_error += 1
         return ret
 
+    def getMaxReducingNode(self):
+        """
+        For post-prune purposes, traverse annotated tree to find the node
+        that when pruned to a leaf, most reduces the classification error
+        """
+        if self.isLeaf:
+            return self.data
+        else:
+            left_n    = self.left.getMaxReducingNode()
+            right_n   = self.right.getMaxReducingNode()
+            left_red  = left_n.classification_error  - left_n.prune_error
+            right_red = right_n.classification_error - right_n.prune_error
+            my_red    = self.classification_error    - self.prune_error
+            max_red   = max(left_red, right_red, my_red)
+            if   max_red == left_red:
+                return left_n
+            elif max_red == right_red:
+                return right_n
+            else:
+                return self
+
+    def prune(self):
+        """
+        Prunes Tree to have no children
+        Value takes on most abundant genre
+        """
+        self.node.prune()
+        self.left   = None
+        self.right  = None
+        self.pruned = True
+
     def post_prune(self, df):
         """Post-prune tree until no further reduction in classification error"""
         diff = 0
@@ -208,10 +256,11 @@ class DTree(BinaryTree):
     def prettyPrint(self, indent=0):
         """Pretty prints tree into formatted if-else python code"""
         s = ' ' * indent
+        width = 2
         if self.isLeaf:
             print('%sreturn %s' % (s, node.value)
         else:
             print('%sif %s < %s:' % (s, node.col, node.value))
-            self.left.prettyPrint(indent + 2)
+            self.left.prettyPrint(indent + width)
             print('%selse: # %s %s' % (s, node.col, node.value))
-            self.right.prettyPrint(indent + 2)
+            self.right.prettyPrint(indent + width)
