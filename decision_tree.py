@@ -1,11 +1,11 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 from random import random as rand
 import pandas as pd
 import re
 import sys
 
-SALAMI_path    = '/home/matt/Development/cs580/project/repo/salami_data/'
+SALAMI_path    = '.'
 val_path       = SALAMI_path + 'validations/'
 prune_val_path = SALAMI_path + 'prune_validation/'
 run_path       = SALAMI_path + 'runs/'
@@ -18,9 +18,6 @@ POST_PRUNE  = False
 SAVE_GRAPH  = False
 MIN_GAIN    = 0.125
 MIN_FREQ    = 0.9
-
-def getBaseName(filename):
-    return re.sub('.*/', '', filename)
 
 def getRelevantFeatures(dataset):
     """
