@@ -3,11 +3,8 @@
 from random import random as rand
 import pandas as pd
 import re
-import math
-import pydot
 import sys
 
-TARGET         = 'genre'
 SALAMI_path    = '/home/matt/Development/cs580/project/repo/salami_data/'
 val_path       = SALAMI_path + 'validations/'
 prune_val_path = SALAMI_path + 'prune_validation/'
@@ -25,346 +22,18 @@ MIN_FREQ    = 0.9
 def getBaseName(filename):
     return re.sub('.*/', '', filename)
 
-def entropy(array):
-    """
-    Given array-like structure, compute its entropy
-    """
-    freq_dict = {}
-    for val in array:
-        if val not in list(freq_dict):
-            freq_dict[val]  = 1
-        else:
-            freq_dict[val] += 1
-    entropy = 0.0
-    total_count = 1.0 * len(array)
-    for val in list(freq_dict):
-        frequency = 1.0 * freq_dict[val] / total_count
-        entropy  -= frequency * math.log(frequency,2)
-    return entropy
-
-def information_gain(dataset, axis, threshold):
-    """
-    Given dataframe, column axis, and split threshold, 
-    compute information gain of splitting axis column of dataframe with threshold
-    """
-    y = list(dataset[TARGET])
-    ye = entropy(y)
-    a = list(dataset[dataset[axis] <  threshold][TARGET])
-    ae = (1.0 * len(a)/len(y)) * entropy(a)
-    b = list(dataset[dataset[axis] >= threshold][TARGET])
-    be = (1.0 * len(b)/len(y)) * entropy(b)
-    return ye - ae - be
-
-def find_optimal_split(dataset):
-    """
-    Given dataframe, determine optimal split (axis and threshold)
-    Uses a naive search to test each possible split on all axes
-    Returns the resulting optimal gain, optimal axis, and optimal threshold
-    """
-    (best_gain,best_axis,best_threshold) = (0,0,0)
-    axis_index = 0
-    features = dataset.columns.tolist()[:-1]
-    for axis in features:
-        uniq_data = dataset.sort(columns=axis,inplace=False)
-        uniq_data = uniq_data.drop_duplicates(subset=axis)
-        for index in range(0,len(uniq_data) - 1):
-            datum1 = uniq_data.iloc[index,axis_index]
-            datum2 = uniq_data.iloc[index + 1, axis_index]
-            threshold = datum1 + (abs(datum1 - datum2)/2)
-            gain = information_gain(dataset,axis,threshold)
-            if gain > best_gain:
-                (best_gain,best_axis,best_threshold) = (gain,axis,threshold)
-        axis_index += 1
-    return best_gain, best_axis, best_threshold
-    
-class DTreeNode:
-    i = 0
-
-    def __init__(self, val, col, maj, l, r):
-        self.value                = val
-        self.col                  = col
-        self.majority_class       = maj
-        self.left                 = l
-        self.right                = r
-        self.count                = DTreeNode.i
-        self.classification_error = 0
-        self.num_seen             = 0
-        self.prune_error          = 0
-        self.pruned               = False
-
-    @classmethod
-    def makeLeaf(cls, val):
-        """
-        Factory method to construct a TreeNode with no children
-        """
-        return cls(val, -1, val, None, None)
-
-    def decide (self, datarow):
-        """
-        Given a datarow of a song, run data through node subtree to decide the song's genre
-        """
-        truth = datarow['genre']
-        self.num_seen += 1
-        if self.isLeaf():
-            if DEBUG:
-                print 'Categorized as', self.value
-            ret = self.value
-        elif datarow[self.col] < self.value:
-            if DEBUG:
-                print 'Going left  at %s < %f' % (datarow[self.col], self.value)
-            ret = self.left.decide(datarow)
-        else:
-            if DEBUG:
-                print 'Going right at %s < %f' % (datarow[self.col], self.value)
-            ret = self.right.decide(datarow)
-        if ret != truth:
-            if DEBUG:
-                print 'Incorrect: expected %s, received %s' % (truth, ret)
-                print 'Incrementing class error (%s)' % truth
-            self.classification_error += 1
-        if self.majority_class != truth:
-            if DEBUG:
-                print 'Incrementing prune error (%s)' % truth
-            self.prune_error += 1
-        return ret
-
-    def getMaxReducingNode(self):
-        """
-        For post-prune purposes, traverse annotated tree to find the node
-        that when pruned to a leaf, most reduces the classification error
-        """
-        if self.isLeaf():
-            return self
-        else:
-            left_n    = self.left.getMaxReducingNode()
-            right_n   = self.right.getMaxReducingNode()
-            left_red  = left_n.classification_error  - left_n.prune_error
-            right_red = right_n.classification_error - right_n.prune_error
-            my_red    = self.classification_error    - self.prune_error
-            max_red   = max(left_red, right_red, my_red)
-            if   max_red == left_red:
-                return left_n
-            elif max_red == right_red:
-                return right_n
-            else:
-                return self
-
-    def prune(self):
-        """
-        Prunes node to have no children
-        Value takes on most abundant genre 
-        """
-        self.value  = self.majority_class
-        self.col    = -1
-        self.left   = None
-        self.right  = None
-        self.pruned = True
-
-    def isLeaf(self):
-        """
-        Returns True iff node has no children
-        """
-        return self.left is None and self.right is None
-
-    def getDescription(self):
-        """
-        Returns string description of node
-        """
-        DTreeNode.i += 1
-        if self.isLeaf():
-            return "%s\n%d   %d\n<%d>" % (self.value,
-                                          self.classification_error,
-                                          self.prune_error, self.count)
-        else:
-            return "%s < %f\n%d   %d\n<%d>" % (self.col,
-                                               self.value,
-                                               self.classification_error,
-                                               self.prune_error, self.count)
-
-    def height(self):
-        """
-        Returns height of self's subtree
-        """
-        if self.isLeaf():
-            return 0
-        return max(self.left.height(), self.right.height()) + 1
-
-    def size(self):
-        """
-        Returns number of vertices in self's subtree
-        """
-        if self.isLeaf():
-            return 1
-        return self.left.size() + self.right.size() + 1
-
-    def toGraph(self, graph):
-        """
-        Converts self subtree to pydot graph
-        """
-        myNode = self.getVertex()
-        graph.add_node(myNode)
-        if self.isLeaf():
-            return myNode
-        else:
-            lNode = self.left.toGraph(graph)
-            rNode = self.right.toGraph(graph)
-            graph.add_node(lNode)
-            graph.add_node(rNode)
-            graph.add_edge(pydot.Edge(myNode, lNode))
-            graph.add_edge(pydot.Edge(myNode, rNode))
-            return myNode
-
-    def getVertex(self):
-        """
-        Returns pydot vertex representation of self
-        """
-        return pydot.Node(self.getDescription(),
-                          style="filled",
-                          fillcolor=self.__getColor())
-
-    def __getColor(self):
-        """
-        Returns color of self for pydot representation
-        """
-        if self.pruned:
-            return "cyan"
-        if self.isLeaf():
-            if self.value == "Blues":
-                color = "blue"
-            elif self.value == "Classical":
-                color = "orange"
-            elif self.value == "Jazz":
-                color = "red"
-            elif self.value == "R&B":
-                color = "yellow"
-            elif self.value == "Rock":
-                color = "green"
-            elif self.value == "World":
-                color = "pink"
-        else:
-            if self.col == "num_bars" or self.col == "avg_bar_len":
-                color = "sienna"
-            elif self.col == "num_beats" or self.col == "avg_beat_len":
-                color = "white"
-            elif self.col == "num_tatums" or self.col == "avg_tatum_len":
-                color = "khaki"
-            elif self.col == "num_sections" or self.col == "avg_section_len":
-                color = "orchid"
-            elif self.col == "tempo_val":
-                color = "lavender"
-            elif self.col == "duration":
-                color = "brown"
-        return color
-
-    def prettyPrint(self, indent):
-        """
-        Pretty prints self subtree into if-else python code
-        """
-        s = ' ' * indent
-        if self.isLeaf():
-            print s + 'return ' + repr(self.value)
-        else:
-            print s + 'if %s < %f:' % (self.col, self.value)
-            self.left.prettyPrint(indent + 2)
-            print s + 'else: # %s %f' % (self.col, self.value)
-            self.right.prettyPrint(indent + 2)
-
-def num_groups(dataset):
-    """
-    Return number of genres in dataset
-    """
-    return len(dataset.groupby(TARGET).groups)
-
 def getRelevantFeatures(dataset):
     """
     Drop columns of input data that are not relevant to learning
     """
     return dataset.drop(['ID',
-                         'std_bar_len','avg_bar_conf','std_bar_conf',
-                         'std_beat_len', 'avg_beat_conf','std_beat_conf',
-                         'std_tatum_len', 'avg_tatum_conf','std_tatum_conf',
+                         'std_bar_len',     'avg_bar_conf',    'std_bar_conf',
+                         'std_beat_len',    'avg_beat_conf',   'std_beat_conf',
+                         'std_tatum_len',   'avg_tatum_conf',  'std_tatum_conf',
                          'std_section_len', 'avg_section_conf','std_section_conf',
-                         'key_val','key_conf','tempo_conf'
-                       ], 1)
-
-class DTree:
-    def __init__(self, filename, val_fn=None):
-        dataframe = pd.read_csv(filename)
-        dataframe = getRelevantFeatures(dataframe)
-        self.root = learn_decision_tree(dataframe)
-        print 'Decision tree for %s has been learned' % getBaseName(filename)
-        print 'Height: %d Vertices: %d' % (self.height(), self.size())
-        if val_fn is not None:
-            self.post_prune(pd.read_csv(val_fn))
-            print 'Pruned height: %d Pruned size: %d' % (self.height(), self.size())
-        if SAVE_GRAPH:
-            self.toGraph().write_png('%s.png' % filename)
-
-    def toGraph(self):
-        """
-        Returns pydot graphical representation of tree
-        """
-        graph = pydot.Dot(graph_type='digraph', ordering='out')
-        self.root.toGraph(graph)
-        return graph
-
-    def height(self):
-        """
-        Returns height of tree
-        """
-        return self.root.height()
-
-    def size(self):
-        """
-        Returns number of vertices in tree
-        """
-        return self.root.size()
-
-    def decide (self, datarow):
-        """
-        Decide genre for given song
-        """
-        return self.root.decide(datarow)
-
-    def post_prune(self, df):
-        """
-        Post-prune tree until no further reduction in classification error
-        """
-        diff = 0
-        while True:
-            for _, row in df.iterrows():
-                if DEBUG:
-                    print 'Using', row['ID'], row['genre']
-                self.decide(row)
-            node = self.root.getMaxReducingNode()
-            if DEBUG:
-                print node.classification_error - node.prune_error
-            if node.classification_error - node.prune_error > diff:
-                node.pruned = True
-                node.prune()
-                diff = node.classification_error - node.prune_error
-            else:
-                break
-
-    def prettyPrint(self):
-        """
-        Pretty prints tree into if-else python code
-        """
-        self.root.prettyPrint(0)
-
-def getMajorityClass(dataset):
-    """
-    Given dataset, return most abundant genre
-    """
-    grps = dataset.groupby(TARGET).groups
-    max_val = 0
-    for cat in grps:
-        if len(grps[cat]) > max_val:
-            max_val = len(grps[cat])
-            max_col = cat
-    if DEBUG:
-        print 'Majority class %s (%d)' % (max_col, max_val)
-    return max_col, max_val
+                         'key_val','key_conf',
+                         'tempo_conf'],
+                        1)
 
 def learn_decision_tree(dataset):
     """
@@ -407,7 +76,7 @@ def test_tree (train_fn, test_fn, val_fn):
     for _, row in df.iterrows():
         ID = row['ID']
         guess = dTree.decide(row)
-        truth = row['genre']
+        truth = row[TARGET]
         if guess != truth:
             if DEBUG:
                 print ID
@@ -428,7 +97,7 @@ def cross_validate(filepath, K):
     for i in range(K):
         suffix = '_%d.csv' % i
         train_fn = filepath + 'both' + suffix
-#        train_fn = filepath + 'train' + suffix
+        # train_fn = filepath + 'train' + suffix
         test_fn  = filepath + 'test' + suffix
         val_fn   = None
         if POST_PRUNE:
@@ -445,7 +114,9 @@ def getContiguousPartitions(lines, chunksize):
     """
     Return contiguous partition of lines where as many partitions are size chunksize
     """
-    chunks = [lines[start:start+chunksize] for start in range(0,(K-1)*chunksize, chunksize)]
+    chunks = [lines[start:start+chunksize] for start in range(0,
+                                                              (K-1)*chunksize,
+                                                              chunksize)]
     chunks.append(lines[chunksize*(K-1):])
     return chunks
 
@@ -489,7 +160,7 @@ def gen_cross_validation_files(path, filename, K):
     lines  = all_lines[1:]
     num_lines = len(lines)
     chunksize = num_lines/K
-#    chunks = getContiguousPartitions(lines, chunksize)
+    # chunks = getContiguousPartitions(lines, chunksize)
     chunks = getRandomPartitions(lines, chunksize, K)
     for i, c in enumerate(chunks):
         test_f = open("%stest_%d.csv" % (path,i), 'w')
