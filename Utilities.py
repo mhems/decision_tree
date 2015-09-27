@@ -71,5 +71,5 @@ def getMajorityClass(dataset):
             max_val = len(grps[cat])
             max_col = cat
     if DEBUG:
-        print 'Majority class %s (%d)' % (max_col, max_val)
+        print('Majority class %s (%d)' % (max_col, max_val))
     return max_col, max_val

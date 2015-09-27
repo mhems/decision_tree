@@ -79,13 +79,13 @@ def test_tree (train_fn, test_fn, val_fn):
         truth = row[TARGET]
         if guess != truth:
             if DEBUG:
-                print ID
+                print(ID)
             wrong += 1
-    print 'File %s:: %d incorrect out of %d (%.2f%% correct)' % (
+    print('File %s:: %d incorrect out of %d (%.2f%% correct)' % (
         getBaseName(test_fn),
         wrong,
         total,
-        (total-wrong) * 100.0 / total)
+        (total-wrong) * 100.0 / total))
     return (wrong, total)
 
 def cross_validate(filepath, K):
@@ -107,7 +107,7 @@ def cross_validate(filepath, K):
         acc_wrong += wrong
         acc_total += total
     err = acc_wrong/acc_total
-    print "Total error: %.2f%%" % (err*100)
+    print("Total error: %.2f%%" % (err*100))
     return err
 
 def getContiguousPartitions(lines, chunksize):
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     K = 10
     argc = len(sys.argv)
     if argc < 2 or argc > 3:
-        print 'Usage: %s -m|-v|-r [-g|-f]' % sys.argv[0]
+        print('Usage: %s -m|-v|-r [-g|-f]' % sys.argv[0])
         sys.exit(1)
     if sys.argv[1] == '-m':
         if sys.argv[2] == '-p':
@@ -209,9 +209,9 @@ if __name__ == '__main__':
         err = cross_validate(prune_val_path, K)
     # deprecated
     elif sys.argv[1] == '-r':
-        print 'Warning - deprecated code!'
+        print('Warning - deprecated code!')
         for i in range(1, 11):
             test_tree(run_path + 'train_' + repr(i) + '.csv',
                       run_path + 'test_'  + repr(i) + '.csv',
                       None)
-            print '**********'
+            print('*' * 10)

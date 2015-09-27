@@ -55,24 +55,24 @@ class DTreeNode:
         self.num_seen += 1
         if self.isLeaf:
             if DEBUG:
-                print 'Categorized as', self.value
+                print('Categorized as', self.value)
             ret = self.value
         elif datarow[self.col] < self.value:
             if DEBUG:
-                print 'Going left  at %s < %f' % (datarow[self.col], self.value)
+                print('Going left  at %s < %f' % (datarow[self.col], self.value))
             ret = self.left.decide(datarow)
         else:
             if DEBUG:
-                print 'Going right at %s < %f' % (datarow[self.col], self.value)
+                print('Going right at %s < %f' % (datarow[self.col], self.value))
             ret = self.right.decide(datarow)
         if ret != truth:
             if DEBUG:
-                print 'Incorrect: expected %s, received %s' % (truth, ret)
-                print 'Incrementing class error (%s)' % truth
+                print('Incorrect: expected %s, received %s' % (truth, ret))
+                print('Incrementing class error (%s)' % truth)
             self.classification_error += 1
         if self.majority_class != truth:
             if DEBUG:
-                print 'Incrementing prune error (%s)' % truth
+                print('Incrementing prune error (%s)' % truth)
             self.prune_error += 1
         return ret
 
@@ -186,11 +186,11 @@ class DTreeNode:
         """
         s = ' ' * indent
         if self.isLeaf:
-            print s + 'return ' + repr(self.value)
+            print(s + 'return ' + repr(self.value))
         else:
-            print s + 'if %s < %f:' % (self.col, self.value)
+            print(s + 'if %s < %f:' % (self.col, self.value))
             self.left.prettyPrint(indent + 2)
-            print s + 'else: # %s %f' % (self.col, self.value)
+            print(s + 'else: # %s %f' % (self.col, self.value))
             self.right.prettyPrint(indent + 2)
 
 class DTree:
@@ -200,13 +200,13 @@ class DTree:
         dataframe = getRelevantFeatures(dataframe)
         self.root = learn_decision_tree(dataframe)
         if DEBUG:
-            print 'Decision tree for %s has been learned' % getBaseName(filename)
-            print 'Height: %d Vertices: %d' % (self.height(), self.size())
+            print('Decision tree for %s has been learned' % getBaseName(filename))
+            print('Height: %d Vertices: %d' % (self.height, self.size))
         if val_fn is not None:
             self.post_prune(pd.read_csv(val_fn))
             if DEBUG:
-                print 'Pruned height: %d Pruned size: %d' % (self.height(),
-                                                             self.size())
+                print('Pruned height: %d Pruned size: %d' % (self.height,
+                                                             self.size))
         if SAVE_GRAPH:
             self.toGraph().write_png('%s.png' % filename)
 
@@ -246,11 +246,11 @@ class DTree:
         while True:
             for _, row in df.iterrows():
                 if DEBUG:
-                    print 'Using', row['ID'], row['genre']
+                    print('Using', row['ID'], row['genre'])
                 self.decide(row)
             node = self.root.getMaxReducingNode()
             if DEBUG:
-                print node.classification_error - node.prune_error
+                print(node.classification_error - node.prune_error)
             if node.classification_error - node.prune_error > diff:
                 node.pruned = True
                 node.prune()
