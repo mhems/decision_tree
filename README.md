@@ -2,8 +2,8 @@
 Machine learning project striving towards music genre classification using decision trees
 
 Music song annotations collected and aggregrated from [SALAMI](http://www.clir.org/pubs/reports/pub151/case-studies/salami) music database
-    
-Features:
+
+## Features:
 * cross-validation batch evaluation
 * pre-pruning options
 * post-pruning options
@@ -11,3 +11,8 @@ Features:
 * small scripts to aggregrate, manage, and evaluate data
 * iPython example notebooks
 * brief report on methodology and results
+
+## Dependencies:
+* [pandas](https://pypi.python.org/pypi/pandas)
+* [pydot](https://pypi.python.org/pypi/pydot)
+* [iPython](http://ipython.org/) (if using notebooks)
