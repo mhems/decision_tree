@@ -1,4 +1,5 @@
 import math
+import random
 
 def entropy(array):
     """Given array-like structure, compute its entropy"""
@@ -38,6 +39,8 @@ def find_optimal_split(dataset):
     axis_index = 0
     features = dataset.columns.tolist()[:-1]
     for axis in features:
+        if axis is None or axis == '':
+            continue
         uniq_data = dataset.sort(columns=axis,inplace=False)
         uniq_data = uniq_data.drop_duplicates(subset=axis)
         for index in range(0,len(uniq_data) - 1):
@@ -62,6 +65,51 @@ def getMajorityClass(dataset):
         if len(grps[cat]) > max_val:
             max_val = len(grps[cat])
             max_col = cat
-    if DEBUG:
-        print('Majority class %s (%d)' % (max_col, max_val))
     return max_col, max_val
+
+def divyUpNumber(N, K):
+    """Divy up, as evenly as possible, N things to K bins"""
+    bins = [0 for _ in range(K)]
+    while N > 0:
+        for i in range(K):
+            if N > 0:
+                bins[i] += 1
+            else:
+                break
+            N -= 1
+    return bins
+
+def getContiguousPartitions(lines, K):
+    """Return K contiguous partitions of lines"""
+    N = len(lines)
+    bins = divyUpNumber(N, K)
+    partitions = []
+    start = 0
+    for e in bins:
+        partitions.append(lines[start:start+e])
+        start += e
+    return partitions
+
+def getLinesRandomly(lines, amt):
+    """Remove amt lines randomnly from lines and return it"""
+    s = set()
+    N = len(lines)
+    while len(s) < amt:
+        s.add(int(random.random() * N))
+    indices = list(s)
+    ret = [lines[i] for i in indices]
+    indices.sort(reverse=True)
+    for i in indices:
+        lines.pop(i)
+    return (ret, lines)
+
+def getRandomPartitions(lines, K):
+    """Get K random partitions of lines"""
+    copy = lines
+    partitions = []
+    i = 0
+    bins = divyUpNumber(N, K);
+    for e in bins:
+        t, copy = getLinesRandomly(copy, e)
+        partitions.append(t)
+    return partitions

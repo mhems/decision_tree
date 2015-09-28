@@ -1,5 +1,7 @@
-import pandas as pd
 import pydot
+import re
+
+from Utilities import *
 
 DEBUG = False
 
@@ -108,21 +110,6 @@ class DTree(BinaryTree):
     def __init__(self, data, left=None, right=None):
         super().__init__(data, left, right)
 
-        # REFACTOR - this doesn't belong here
-        dataframe = pd.read_csv(filename)
-        dataframe = getRelevantFeatures(dataframe)
-        self.root = learn_decision_tree(dataframe)
-        if DEBUG:
-            print('Decision tree for %s has been learned' % getBaseName(filename))
-            print('Height: %d Vertices: %d' % (self.height, self.size))
-        if val_fn is not None:
-            self.post_prune(pd.read_csv(val_fn))
-            if DEBUG:
-                print('Pruned height: %d Pruned size: %d' % (self.height,
-                                                             self.size))
-        if SAVE_GRAPH:
-            self.toGraph().write_png('%s.png' % filename)
-
     @staticmethod
     def learn_decision_tree(dataset, method=DTree.BY_GAIN):
         """
@@ -132,8 +119,6 @@ class DTree(BinaryTree):
             category = re.split('[ \t\n\r]+', repr(dataset['genre']))[1]
             return DTree(DTreeData.byCategory(category))
         gain,axis,threshold = find_optimal_split(dataset)
-        if axis == None or axis == '':
-            raise Exception
         max_col, max_val = getMajorityClass(dataset)
         N = len(dataset)
         if method == DTree.BY_BOTH:
@@ -153,7 +138,7 @@ class DTree(BinaryTree):
                          left_node,
                          right_node)
 
-    def toGraph(self):
+    def writeGraph(self):
         """Returns pydot graphical representation of tree"""
         def toGraph_(node, graph):
             if node.pruned:
@@ -176,7 +161,7 @@ class DTree(BinaryTree):
             return vertex
         graph = pydot.Dot(graph_type='digraph', ordering='out')
         toGraph_(self, graph)
-        return graph
+        graph.write_png(file_)
 
     def decide (self, datarow):
         """Decide genre for given song"""
