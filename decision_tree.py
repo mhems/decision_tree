@@ -4,8 +4,7 @@ from random import random as rand
 import pandas as pd
 import argparse
 
-from Utilities import (getRandomPartitions,
-                       getContiguousPartitions)
+from Utilities import getRandomPartitions, getContiguousPartitions
 
 def sanitize(dataset):
     """Drop columns of input data that are not relevant to learning"""
@@ -14,7 +13,7 @@ def sanitize(dataset):
                          'std_beat_len',    'avg_beat_conf',   'std_beat_conf',
                          'std_tatum_len',   'avg_tatum_conf',  'std_tatum_conf',
                          'std_section_len', 'avg_section_conf','std_section_conf',
-                         'key_val','key_conf',
+                         'key_val', 'key_conf',
                          'tempo_conf'],
                         1)
 
@@ -44,9 +43,7 @@ def test_tree (train_fn, test_fn, val_fn):
     return (wrong, total)
 
 def cross_validate(filepath, K):
-    """
-    K-fold cross-validation of files in filepath
-    """
+    """K-fold cross-validation of files in filepath"""
     acc_wrong = 0.0
     acc_total = 0.0
     for i in range(K):
@@ -96,7 +93,9 @@ def gen_cross_validation_files(path,
             both_f.write(header)
             both_f.writelines(partitions[r])
         rest = []
-        [rest.extend(partitions[idx]) for idx in range(K) if idx != i and idx != r]
+        for idx in range(K):
+            if idx != i and idx != r:
+                rest.extend(partitions[idx])
         train_f = open("%strain_%d.csv" % (path,i), 'w')
         train_f.write(header)
         train_f.writelines(rest)

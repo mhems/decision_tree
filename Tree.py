@@ -1,7 +1,7 @@
 import pydot
 import re
 
-from Utilities import *
+from Utilities import findOptimalSplit, num_groups, getMajorityClass
 
 DEBUG = False
 
@@ -147,9 +147,11 @@ class DTree(BinaryTree):
                 color = genre_map[node.value]
             else:
                 color = feature_map[node.col]
-            vertex = pydot.Node(node.getDescription(),
-                                style="filled",
-                                fillcolor=color)
+            if node.isLeaf:
+                desc = node.leaf_description
+            else:
+                desc = node.description
+            vertex = pydot.Node(desc, style="filled", fillcolor=color)
             graph.add_node(vertex)
             if not node.isLeaf:
                 lNode = toGraph_(node.left,  graph)
