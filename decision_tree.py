@@ -6,8 +6,10 @@ import argparse
 
 from Utilities import getRandomPartitions, getContiguousPartitions
 
-def sanitize(dataset):
-    """Drop columns of input data that are not relevant to learning"""
+def getDataFrame(filename):
+    """Parse filename into dataframe"""
+    dataset = pd.read_csv(filename)
+    # Drop columns of input data that are not relevant to learning
     return dataset.drop(['ID',
                          'std_bar_len',     'avg_bar_conf',    'std_bar_conf',
                          'std_beat_len',    'avg_beat_conf',   'std_beat_conf',
@@ -17,14 +19,16 @@ def sanitize(dataset):
                          'tempo_conf'],
                         1)
 
-def test_tree (train_fn, test_fn, val_fn):
+def __test_tree (train_fn, test_fn, val_fn=None):
     """
     Learn tree on train_fn data, optionally post-prune on val_fn data
     Evaluate tree on test_fn data
     Returns number incorrect and number evaluated
     """
-    dTree = DTree(train_fn, val_fn)
-    df = pd.read_csv(test_fn)
+    dTree = DTree.learn_decision_tree(getDataFrame(train_fn))
+    if val_fn is not None:
+        dTree.post_prune(getDataFrame(val_fn))
+    df = getDataFrame(test_fn)
     wrong = 0
     total = len(df)
     for _, row in df.iterrows():
@@ -55,7 +59,7 @@ def cross_validate(filepath, K):
         if POST_PRUNE:
             train_fn = filepath + 'train' + suffix
             val_fn   = filepath + 'val' + suffix
-        wrong, total = test_tree(train_fn, test_fn, val_fn)
+        wrong, total = __test_tree(train_fn, test_fn, val_fn)
         acc_wrong += wrong
         acc_total += total
     err = acc_wrong/acc_total
@@ -106,9 +110,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Music Genre Classification using decision trees")
     parser.add_argument('-p',
-                        action = 'store_true',
-                        default = False,
-                        help = 'post-prune decision tree')
+                        dest = 'val_file',
+                        metavar = 'FILE',
+                        default = None,
+                        help = 'validation file for post-pruning decision tree')
     parser.add_argument('-d',
                         action = 'store_true',
                         default = False,
@@ -124,14 +129,14 @@ if __name__ == '__main__':
                         help = 'save tree as image to file')
     parser.add_argument('-c',
                         choices = ['g', 'f', 'b'],
-                        default = 'gain',
+                        default = 'g',
                         dest = 'validation_method',
                         metavar = 'METHOD',
                         help = 'cross-validation method, one of (g)ain,'
                                '(f)req, or (b)oth')
     parser.add_argument('-g',
                         choices = ['r', 'c'],
-                        default = False,
+                        default = 'r',
                         dest = 'generation_method',
                         metavar = 'METHOD',
                         help = 'generate files for cross-validation either'
@@ -143,24 +148,29 @@ if __name__ == '__main__':
                         help = 'csv file to load data from')
 
     args = parser.parse_args()
-    if args.generation_method is not None:
+
+    if args.g is not None:
         if args.generation_method == 'r':
             func = Utilities.getRandomPartitions
         elif args.generation_method == 'c':
             func = Utilities.getContiguousPartitions
         gen_cross_validation_files(args.L, args.FILE, args.K, func, args.p)
-    if args.validation_method is not None:
-        if   args.validation_method == 'g':
-            param = DTree.BY_GAIN
-        elif args.validation_method == 'f':
-            param = DTree.BY_FREQ
-        elif args.validation_method == 'b':
-            param = DTree.BY_BOTH
-        dataset = pd.read_csv(args.FILE)
-        dataset = sanitize(dataset)
-        dTree = DTree.learn_decision_tree(dataset, param)
-        if args.s:
-            dTree.writeGraph(args.graph_file)
-        if args.p:
-            dTree.post_prune()
-        cross_validate(args.L, args.K)
+
+    dataset = getDataFrame(args.FILE)
+    if   args.validation_method == 'g':
+        param = DTree.BY_GAIN
+    elif args.validation_method == 'f':
+        param = DTree.BY_FREQ
+    elif args.validation_method == 'b':
+        param = DTree.BY_BOTH
+        dTree = DTree.learn_decision_tree(dataset, method=param)
+
+    if args.p:
+        val_data = getDataFrame(args.val_file)
+        dTree.post_prune(val_data)
+
+    if args.c is not None:
+        cross_validate(dTree, args.L, args.K)
+
+    if args.s is not None:
+        dTree.writeGraph(args.graph_file)
