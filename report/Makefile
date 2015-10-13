@@ -1,11 +1,14 @@
 TEX = pdflatex
 TARGET = report
 
-all:
+all: $(TARGET).aux
 	$(TEX) $(TARGET).tex
-# compile twice to get references
+
+$(TARGET).aux:
 	$(TEX) $(TARGET).tex
-	rm -f $(TARGET).aux $(TARGET).log
 
 clean:
-	rm -f $(TARGET).pdf
+	rm -f $(TARGET).aux $(TARGET).log
+
+cleanall:
+	rm -f $(TARGET).pdf $(TARGET).aux $(TARGET).log
