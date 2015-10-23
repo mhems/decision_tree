@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 import pandas as pd
 import numpy as np
@@ -6,29 +6,21 @@ import tables
 import glob
 from StringIO import StringIO
 
-############
-## Aggregates data from all json files into cvs summary
-############
+# Aggregates data from all json files into one csv summary
 
-data_path = "/home/matt/Development/cs580/project/data/"
-SALAMI_path = data_path + "SALAMI/" # json
-
-salami_ex = SALAMI_path + 'echonest_features/1060/echonest_data.json'
-
-# series -> index | split | records
-# frame  -> columns | split | records | index | values
-
-def gen_dataframe():
-    print "ID, num_bars,avg_bar_len,std_bar_len,avg_bar_conf,std_bar_conf," \
+def gen_dataframe(path):
+    """Given path to data, prints song info summary"""
+    print("ID, num_bars,avg_bar_len,std_bar_len,avg_bar_conf,std_bar_conf," \
               "num_beats,avg_beat_len,std_beat_len,avg_beat_conf,std_beat_conf," \
               "num_tatums,avg_tatum_len,std_tatum_len,avg_tatum_conf,std_tatum_conf," \
               "num_sections,avg_section_len,std_section_len,avg_section_conf,std_section_conf,"\
-              "duration,key_val,key_conf,tempo_val,tempo_conf,genre"
-    for songpath in glob.glob(SALAMI_path + 'echonest_features/*/*.json'):
+              "duration,key_val,key_conf,tempo_val,tempo_conf,genre")
+    for songpath in glob.glob(path + 'echonest_features/*/*.json'):
         printRow(get_SALAMI_song_info(songpath))
 
 
 def get_SALAMI_song_info(songpath):
+    """Returns tuple of song info at songpath"""
     df = pd.read_json(songpath, typ='series')
     metadata = df['metadata']
     id = metadata['identifier']
@@ -58,6 +50,7 @@ def get_SALAMI_song_info(songpath):
     return tuple(ret)
 
 def collect_stats(dictionary):
+    """Returns tuple of basic statistics over dictionary"""
     num = len(dictionary['start'])
     if num == 0:
         return None
@@ -73,7 +66,8 @@ def collect_stats(dictionary):
 
 def printRow(tup):
     if "nan" not in tup:
-        print ','.join([repr(e) for e in tup])
+        print(','.join([repr(e) for e in tup]))
     
 if __name__ == '__main__':
+    # send in path to SALAMI data
     gen_dataframe()

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [[ $# -ne 1 ]]
+then
+    echo 'USAGE: merge.sh FILE'
+    exit 1
+fi
+
 sed -ri 's@,([^,]+)$@,"\1"@g' $1
 sed -ri 's/^([^,]+),/"\1",/g' $1
 

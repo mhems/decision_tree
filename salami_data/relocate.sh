@@ -2,7 +2,7 @@
 
 if [ $# -ne 2 ]
 then
-    echo 'Usage: ./conv.sh basename toname'
+    echo 'Usage: ./relocate.sh basename toname'
     exit 1
 fi
 
