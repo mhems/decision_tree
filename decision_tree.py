@@ -5,6 +5,7 @@ import pandas as pd
 import argparse
 
 from Utilities import getRandomPartitions, getContiguousPartitions
+from Tree import DTree
 
 def getDataFrame(filename):
     """Parse filename into dataframe"""
@@ -46,7 +47,7 @@ def __test_tree (train_fn, test_fn, val_fn=None):
         (total-wrong) * 100.0 / total))
     return (wrong, total)
 
-def cross_validate(filepath, K):
+def cross_validate(filepath, K, post_prune):
     """K-fold cross-validation of files in filepath"""
     acc_wrong = 0.0
     acc_total = 0.0
@@ -56,7 +57,7 @@ def cross_validate(filepath, K):
         # train_fn = filepath + 'train' + suffix
         test_fn  = filepath + 'test' + suffix
         val_fn   = None
-        if POST_PRUNE:
+        if post_prune:
             train_fn = filepath + 'train' + suffix
             val_fn   = filepath + 'val' + suffix
         wrong, total = __test_tree(train_fn, test_fn, val_fn)
@@ -129,14 +130,14 @@ if __name__ == '__main__':
                         help = 'save tree as image to file')
     parser.add_argument('-c',
                         choices = ['g', 'f', 'b'],
-                        default = 'g',
+                        #default = 'g',
                         dest = 'validation_method',
                         metavar = 'METHOD',
                         help = 'cross-validation method, one of (g)ain,'
                                '(f)req, or (b)oth')
     parser.add_argument('-g',
                         choices = ['r', 'c'],
-                        default = 'r',
+                        #default = 'r',
                         dest = 'generation_method',
                         metavar = 'METHOD',
                         help = 'generate files for cross-validation either'
@@ -149,28 +150,29 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.g is not None:
+    if args.generation_method is not None:
         if args.generation_method == 'r':
-            func = Utilities.getRandomPartitions
+            func = getRandomPartitions
         elif args.generation_method == 'c':
-            func = Utilities.getContiguousPartitions
-        gen_cross_validation_files(args.L, args.FILE, args.K, func, args.p)
+            func = getContiguousPartitions
+        gen_cross_validation_files(args.L, args.FILE, args.k, func, args.val_file)
 
     dataset = getDataFrame(args.FILE)
+    param = None
     if   args.validation_method == 'g':
         param = DTree.BY_GAIN
     elif args.validation_method == 'f':
         param = DTree.BY_FREQ
     elif args.validation_method == 'b':
         param = DTree.BY_BOTH
-        dTree = DTree.learn_decision_tree(dataset, method=param)
+    dTree = DTree.learn_decision_tree(dataset, method=param)
 
-    if args.p:
+    if args.val_file:
         val_data = getDataFrame(args.val_file)
         dTree.post_prune(val_data)
 
-    if args.c is not None:
-        cross_validate(dTree, args.L, args.K)
+    if args.validation_method is not None:
+        cross_validate(args.L, args.k, args.val_file is not None)
 
-    if args.s is not None:
+    if args.graph_file is not None:
         dTree.writeGraph(args.graph_file)

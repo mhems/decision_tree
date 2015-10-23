@@ -1,7 +1,7 @@
 import pydot
 import re
 
-from Utilities import findOptimalSplit, num_groups, getMajorityClass
+from Utilities import find_optimal_split, num_groups, getMajorityClass
 
 DEBUG = False
 
@@ -36,11 +36,6 @@ class BinaryTree:
         self.right = right
 
     @property
-    def node(self):
-        """Return data encapsulated in node"""
-        return self.node
-
-    @property
     def isLeaf(self):
         """Return True iff tree has no children"""
         return self.left is None and self.right is None
@@ -70,12 +65,12 @@ class DTreeData:
         self.col                  = col
         self.majority_class       = maj
         # hack so all pydot vertices are unique
-        self.count                = DTreeNode.i
+        self.count                = DTreeData.i
         self.classification_error = 0
         self.num_seen             = 0
         self.prune_error          = 0
         self.pruned               = False
-        DTreeNode.i += 1
+        DTreeData.i += 1
 
     @staticmethod
     def byCategory(category):
@@ -111,7 +106,7 @@ class DTree(BinaryTree):
         super().__init__(data, left, right)
 
     @staticmethod
-    def learn_decision_tree(dataset, method=DTree.BY_GAIN):
+    def learn_decision_tree(dataset, method=BY_GAIN):
         """
         Given dataframe, learn decision tree using optimal information gain
         """
@@ -123,39 +118,39 @@ class DTree(BinaryTree):
         N = len(dataset)
         if method == DTree.BY_BOTH:
             if gain < DTree.MIN_GAIN and float(max_val) / N > DTree.MIN_FREQ:
-                return DTreeData.byCategory(max_col)
+                return DTree(DTreeData.byCategory(max_col))
         elif method == DTree.BY_GAIN:
             if gain < DTree.MIN_GAIN:
-                return DTreeData.byCategory(max_col)
+                return DTree(DTreeData.byCategory(max_col))
         elif method == DTree.BY_FREQ:
             if max_val * 1.0 / N > DTree.MIN_FREQ:
-                return DTreeData.byCategory(max_col)
+                return DTree(DTreeData.byCategory(max_col))
         left_subset  = dataset[dataset[axis] <  threshold]
-        left_node    = learn_decision_tree(left_subset)
+        left_node    = DTree.learn_decision_tree(left_subset)
         right_subset = dataset[dataset[axis] >= threshold]
-        right_node   = learn_decision_tree(right_subset)
-        return DTreeNode(DTreeData(threshold, axis, max_col),
-                         left_node,
-                         right_node)
+        right_node   = DTree.learn_decision_tree(right_subset)
+        return DTree(DTreeData(threshold, axis, max_col),
+                     left_node,
+                     right_node)
 
-    def writeGraph(self):
+    def writeGraph(self, file_):
         """Returns pydot graphical representation of tree"""
         def toGraph_(node, graph):
-            if node.pruned:
+            if node.node.pruned:
                 color = "cyan"
             elif node.isLeaf:
-                color = genre_map[node.value]
+                color = genre_map[node.node.value]
             else:
-                color = feature_map[node.col]
+                color = feature_map[node.node.col]
             if node.isLeaf:
-                desc = node.leaf_description
+                desc = node.node.leaf_description
             else:
-                desc = node.description
+                desc = node.node.description
             vertex = pydot.Node(desc, style="filled", fillcolor=color)
             graph.add_node(vertex)
             if not node.isLeaf:
                 lNode = toGraph_(node.left,  graph)
-                rNode = toGraph_(node,right, graph)
+                rNode = toGraph_(node.right, graph)
                 graph.add_node(lNode)
                 graph.add_node(rNode)
                 graph.add_edge(pydot.Edge(vertex, lNode))
@@ -245,7 +240,7 @@ class DTree(BinaryTree):
         s = ' ' * indent
         width = 2
         if self.isLeaf:
-            print('%sreturn %s' % (s, node.value)
+            print('%sreturn %s' % (s, node.value))
         else:
             print('%sif %s < %s:' % (s, node.col, node.value))
             self.left.prettyPrint(indent + width)

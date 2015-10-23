@@ -41,7 +41,7 @@ def find_optimal_split(dataset):
     for axis in features:
         if axis is None or axis == '':
             continue
-        uniq_data = dataset.sort(columns=axis,inplace=False)
+        uniq_data = dataset.sort_values(axis,inplace=False)
         uniq_data = uniq_data.drop_duplicates(subset=axis)
         for index in range(0,len(uniq_data) - 1):
             datum1 = uniq_data.iloc[index,axis_index]
@@ -108,7 +108,7 @@ def getRandomPartitions(lines, K):
     copy = lines
     partitions = []
     i = 0
-    bins = divyUpNumber(N, K);
+    bins = divyUpNumber(len(lines), K);
     for e in bins:
         t, copy = getLinesRandomly(copy, e)
         partitions.append(t)
